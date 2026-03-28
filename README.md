@@ -1,8 +1,12 @@
-# kedge
+<p align="center">
+  <img src="docs/book/src/assets/logo.png" alt="kedge" width="500">
+</p>
 
-[![CI](https://github.com/danielhirt/kedge/actions/workflows/ci.yml/badge.svg)](https://github.com/danielhirt/kedge/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/danielhirt/kedge)](https://github.com/danielhirt/kedge/releases/latest)
-[![License](https://img.shields.io/github/license/danielhirt/kedge)](LICENSE)
+<p align="center">
+  <a href="https://github.com/danielhirt/kedge/actions/workflows/ci.yml"><img src="https://github.com/danielhirt/kedge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/danielhirt/kedge/releases/latest"><img src="https://img.shields.io/github/v/release/danielhirt/kedge" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/danielhirt/kedge" alt="License"></a>
+</p>
 
 CLI that detects when code changes make docs stale, classifies drift severity via AI, and invokes agents to update docs and open merge requests.
 

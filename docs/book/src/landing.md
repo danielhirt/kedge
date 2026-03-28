@@ -1,7 +1,8 @@
 <div class="landing">
 
 <div class="hero">
-<h1>kedge</h1>
+<img src="assets/logo.png" alt="kedge" class="hero-logo" style="max-width: 420px; margin-bottom: 1rem;">
+
 <p class="tagline">Stop documentation drift before it reaches production.</p>
 <p class="subtitle">AST-aware drift detection, AI severity triage, and agent-driven remediation for enterprise codebases.</p>
 
