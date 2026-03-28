@@ -14,14 +14,46 @@ Steering files are markdown with `kedge:` frontmatter anchoring documentation to
 
 ## Installation
 
-### From source
-
-Single static binary, no system library dependencies (rustls instead of OpenSSL, git CLI instead of libgit2). Requires Rust 1.70+ and `git` on PATH.
+### Shell installer (Linux/macOS)
 
 ```bash
-cargo build --release
-# Binary at target/release/kedge. Copy to your CI runner image or artifact store.
-cp target/release/kedge /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/danielhirt/kedge/main/install.sh | sh
+```
+
+Detects your platform and downloads the latest release binary to `/usr/local/bin`. Override the install directory with `KEDGE_INSTALL_DIR`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/danielhirt/kedge/main/install.sh | KEDGE_INSTALL_DIR=~/.local/bin sh
+```
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew install danielhirt/tap/kedge
+```
+
+### Docker
+
+```bash
+docker run --rm -v "$PWD:/repo" -w /repo danielhirt/kedge check
+```
+
+Or build from source:
+
+```bash
+docker build -t kedge .
+```
+
+### Pre-built binaries
+
+Download from [GitHub Releases](https://github.com/danielhirt/kedge/releases). Binaries are available for Linux, macOS, and Windows (x86_64 and aarch64). Each archive includes a `.sha256` checksum file.
+
+### From source
+
+Requires Rust 1.70+ and `git` on PATH.
+
+```bash
+cargo install --path .
 ```
 
 ### CI runner setup
@@ -32,21 +64,7 @@ For air-gapped runners, pre-build the binary and add it to your runner image:
 COPY kedge /usr/local/bin/kedge
 ```
 
-Or fetch from an internal artifact repository:
-
-```yaml
-before_script:
-  - curl -fsSL https://artifacts.internal/kedge/latest/kedge -o /usr/local/bin/kedge
-  - chmod +x /usr/local/bin/kedge
-```
-
-### Local development
-
-```bash
-cargo install --path .
-```
-
-Installs `kedge` to `~/.cargo/bin/`. On developer machines, `kedge install --link` symlinks steering files. In CI, `kedge install --workspace` copies them.
+On developer machines, `kedge install --link` symlinks steering files. In CI, `kedge install --workspace` copies them.
 
 ## Quick Start
 
