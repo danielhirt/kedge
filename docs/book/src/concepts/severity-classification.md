@@ -49,7 +49,7 @@ For each drifted doc, kedge:
 3. Parses the response as a JSON array of `{ path, symbol, severity }` classifications
 4. Maps classifications back to anchors
 
-The AI sees both the current documentation and the code changes, so it can judge whether the change actually affects what the docs describe.
+The AI sees both the current documentation and the code changes, so it can judge whether the change affects what the docs describe.
 
 ### Triage prompt structure
 
