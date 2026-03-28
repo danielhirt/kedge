@@ -158,7 +158,9 @@ pub struct RemediationSummary {
 }
 
 impl Severity {
+    /// Returns the maximum severity from a slice.
+    /// Returns `NoUpdate` for empty input (safe default).
     pub fn max_of(severities: &[Severity]) -> Severity {
-        *severities.iter().max().expect("severities must not be empty")
+        severities.iter().copied().max().unwrap_or(Severity::NoUpdate)
     }
 }

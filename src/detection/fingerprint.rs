@@ -8,6 +8,7 @@ pub enum Language {
     Java,
     Go,
     TypeScript,
+    Tsx,
     Xml,
 }
 
@@ -17,7 +18,9 @@ impl Language {
         match ext {
             "java" => Some(Language::Java),
             "go" => Some(Language::Go),
-            "ts" | "tsx" | "js" | "jsx" => Some(Language::TypeScript),
+            "ts" => Some(Language::TypeScript),
+            "tsx" | "jsx" => Some(Language::Tsx),
+            "js" => Some(Language::TypeScript),
             "xml" => Some(Language::Xml),
             _ => None,
         }
@@ -29,6 +32,7 @@ impl Language {
             Language::Java => tree_sitter_java::LANGUAGE.into(),
             Language::Go => tree_sitter_go::LANGUAGE.into(),
             Language::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            Language::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
             Language::Xml => tree_sitter_xml::LANGUAGE_XML.into(),
         }
     }
@@ -128,7 +132,7 @@ fn find_symbol_recursive<'tree>(
     lang: Language,
 ) -> Option<Node<'tree>> {
     match lang {
-        Language::Java | Language::TypeScript => {
+        Language::Java | Language::TypeScript | Language::Tsx => {
             if is_class_declaration(node.kind(), lang) {
                 if let Some(target_class) = class_name {
                     let name = node_field_text(node, "name", source)?;
@@ -209,7 +213,7 @@ fn is_method_declaration(kind: &str, lang: Language) -> bool {
             kind,
             "function_declaration" | "method_declaration"
         ),
-        Language::TypeScript => matches!(
+        Language::TypeScript | Language::Tsx => matches!(
             kind,
             "method_definition" | "function_declaration" | "function"
         ),

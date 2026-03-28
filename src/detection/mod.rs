@@ -63,7 +63,7 @@ pub fn detect_drift(
     let current_sha = head_sha(code_repo_path)?;
 
     // 2. Scan docs directory — no group filter here.
-    let docs = scan_docs(docs_dir, "docs", None);
+    let docs = scan_docs(docs_dir, code_repo_url, None);
 
     let mut drifted: Vec<DriftedDoc> = Vec::new();
     let mut clean: Vec<CleanDoc> = Vec::new();

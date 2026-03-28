@@ -34,17 +34,20 @@ pub fn get_or_clone(repo_url: &str, git_ref: &str) -> Result<PathBuf> {
         }
 
         let checkout_ref = format!("origin/{}", git_ref);
-        let checkout_status = Command::new("git")
-            .args(["-C", &cache_dir.to_string_lossy(), "checkout", &checkout_ref])
+        let reset_status = Command::new("git")
+            .args(["-C", &cache_dir.to_string_lossy(), "reset", "--hard", &checkout_ref])
             .status()
-            .context("failed to run git checkout")?;
+            .context("failed to run git reset")?;
 
-        if !checkout_status.success() {
-            anyhow::bail!("git checkout '{}' failed in {}", checkout_ref, cache_dir.display());
+        if !reset_status.success() {
+            anyhow::bail!("git reset --hard '{}' failed in {}", checkout_ref, cache_dir.display());
         }
     } else {
-        std::fs::create_dir_all(&cache_dir)
-            .with_context(|| format!("failed to create cache dir {}", cache_dir.display()))?;
+        // Create the parent directory only — git clone creates the final dir itself
+        if let Some(parent) = cache_dir.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create cache parent dir {}", parent.display()))?;
+        }
 
         let clone_status = Command::new("git")
             .args([

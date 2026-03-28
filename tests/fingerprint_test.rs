@@ -62,7 +62,59 @@ fn language_detection_from_extension() {
     assert_eq!(Language::from_extension("java"), Some(Language::Java));
     assert_eq!(Language::from_extension("go"), Some(Language::Go));
     assert_eq!(Language::from_extension("ts"), Some(Language::TypeScript));
-    assert_eq!(Language::from_extension("tsx"), Some(Language::TypeScript));
+    assert_eq!(Language::from_extension("js"), Some(Language::TypeScript));
+    assert_eq!(Language::from_extension("tsx"), Some(Language::Tsx));
+    assert_eq!(Language::from_extension("jsx"), Some(Language::Tsx));
     assert_eq!(Language::from_extension("xml"), Some(Language::Xml));
     assert_eq!(Language::from_extension("py"), None);
+}
+
+#[test]
+fn go_fingerprint_ignores_whitespace() {
+    let compact = "package main\nfunc foo() { return }";
+    let spaced = "package main\n\nfunc foo() {\n\treturn\n}";
+    let h1 = ast_fingerprint(compact, Language::Go, None).unwrap();
+    let h2 = ast_fingerprint(spaced, Language::Go, None).unwrap();
+    assert_eq!(h1, h2);
+}
+
+#[test]
+fn go_fingerprint_detects_changes() {
+    let source = std::fs::read_to_string("tests/fixtures/handler.go").unwrap();
+    let h1 = ast_fingerprint(&source, Language::Go, None).unwrap();
+    let modified = source.replace("http.StatusUnauthorized", "http.StatusForbidden");
+    let h2 = ast_fingerprint(&modified, Language::Go, None).unwrap();
+    assert_ne!(h1, h2);
+}
+
+#[test]
+fn tsx_fingerprint_parses_jsx() {
+    let source = std::fs::read_to_string("tests/fixtures/component.tsx").unwrap();
+    let h1 = ast_fingerprint(&source, Language::Tsx, None).unwrap();
+    assert!(!h1.is_empty());
+    // Consistent
+    let h2 = ast_fingerprint(&source, Language::Tsx, None).unwrap();
+    assert_eq!(h1, h2);
+}
+
+#[test]
+fn tsx_fingerprint_detects_changes() {
+    let source = std::fs::read_to_string("tests/fixtures/component.tsx").unwrap();
+    let h1 = ast_fingerprint(&source, Language::Tsx, None).unwrap();
+    let modified = source.replace("onLogout", "onSignOut");
+    let h2 = ast_fingerprint(&modified, Language::Tsx, None).unwrap();
+    assert_ne!(h1, h2);
+}
+
+#[test]
+fn xml_fingerprint_detects_structural_changes() {
+    let source = std::fs::read_to_string("tests/fixtures/form.xml").unwrap();
+    let h1 = ast_fingerprint(&source, Language::Xml, None).unwrap();
+    // Add a new element — structural change the parser will detect
+    let modified = source.replace(
+        "</form>",
+        "  <field name=\"confirm\" type=\"password\" required=\"true\" />\n</form>",
+    );
+    let h2 = ast_fingerprint(&modified, Language::Xml, None).unwrap();
+    assert_ne!(h1, h2);
 }

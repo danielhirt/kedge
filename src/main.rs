@@ -93,29 +93,28 @@ skill_dir = ""
             }
         }
         Command::Check { report } => {
-            // Read config to get the repo name (best-effort; fall back to cwd name).
-            let config = steer::config::Config::from_file(&cli.config).ok();
-            let repo_name = config
-                .as_ref()
-                .and_then(|_| {
-                    std::env::current_dir()
-                        .ok()
-                        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
-                })
-                .unwrap_or_else(|| "unknown".to_string());
-
-            // Resolve code repo path (current working directory).
             let code_repo_path = std::env::current_dir()?;
-
-            // Docs location comes from the STEER_DOCS_PATH env var.
-            let docs_path_str = std::env::var("STEER_DOCS_PATH").unwrap_or_else(|_| "docs".to_string());
-            let docs_path = std::path::PathBuf::from(&docs_path_str);
-
-            // Derive the repo URL: prefer file:// for local paths, otherwise use
-            // the STEER_CODE_REPO_URL env var if set.
+            let repo_name = code_repo_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "unknown".to_string());
             let code_repo_url = std::env::var("STEER_CODE_REPO_URL").unwrap_or_else(|_| {
                 format!("file://{}", code_repo_path.display())
             });
+
+            // Resolve docs path: STEER_DOCS_PATH env var (for testing/overrides),
+            // otherwise clone from config's repos.docs
+            let docs_path = if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
+                std::path::PathBuf::from(p)
+            } else {
+                let config = steer::config::Config::from_file(&cli.config)
+                    .context("failed to load steer.toml — run `steer init` first")?;
+                let doc_repo = config.repos.docs.first()
+                    .context("no docs repo configured in steer.toml")?;
+                let cached = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
+                    .with_context(|| format!("failed to clone docs repo {}", doc_repo.url))?;
+                if doc_repo.path.is_empty() { cached } else { cached.join(&doc_repo.path) }
+            };
 
             let drift_report = steer::detection::detect_drift(
                 &code_repo_path,
@@ -291,15 +290,29 @@ skill_dir = ""
                 }
             }
 
-            // 6. Provenance-sync entries
-            let provenance_advanced: Vec<steer::models::ProvenanceSynced> = to_sync
-                .iter()
-                .map(|doc| steer::models::ProvenanceSynced {
+            // 6. Advance provenance for no_update anchors
+            let mut provenance_advanced: Vec<steer::models::ProvenanceSynced> = Vec::new();
+            for doc in &to_sync {
+                let doc_file = docs_path.join(&doc.doc);
+                let mut synced = 0usize;
+                for anchor in &doc.anchors {
+                    if let Err(e) = steer::frontmatter::update_provenance(
+                        &doc_file,
+                        &anchor.path,
+                        anchor.symbol.as_deref(),
+                        &current_commit,
+                    ) {
+                        eprintln!("warning: failed to sync provenance for {}: {}", doc.doc, e);
+                    } else {
+                        synced += 1;
+                    }
+                }
+                provenance_advanced.push(steer::models::ProvenanceSynced {
                     doc: doc.doc.clone(),
-                    anchors_synced: doc.anchors.len(),
-                    reason: "all anchors no_update".to_string(),
-                })
-                .collect();
+                    anchors_synced: synced,
+                    reason: "no_update — code changes did not affect documentation accuracy".to_string(),
+                });
+            }
 
             // 7. Output summary
             let summary = steer::models::RemediationSummary {

@@ -33,10 +33,10 @@ pub fn install_to_workspace(
         copy_md_files_flat(&shared_dir, target_dir)?;
     }
 
-    // Copy _steer/agents_file
+    // Copy _steer/AGENTS.md as the platform's agents_file name
     let meta_dir = source_dir.join("_steer");
     if let Some(af) = agents_file {
-        let src = meta_dir.join(af);
+        let src = meta_dir.join("AGENTS.md");
         if src.exists() {
             let dst = target_dir.join(af);
             std::fs::copy(&src, &dst)
@@ -85,10 +85,10 @@ pub fn install_as_links(
         link_md_files_flat(&shared_dir, target_dir)?;
     }
 
-    // Link _steer/agents_file
+    // Link _steer/AGENTS.md as the platform's agents_file name
     let meta_dir = source_dir.join("_steer");
     if let Some(af) = agents_file {
-        let src = meta_dir.join(af);
+        let src = meta_dir.join("AGENTS.md");
         if src.exists() {
             let dst = target_dir.join(af);
             create_symlink(&src, &dst)?;
