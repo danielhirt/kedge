@@ -19,10 +19,78 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Init => {
-            println!("steer init: not yet implemented");
+            if cli.config.exists() {
+                eprintln!(
+                    "{} already exists — skipping.",
+                    cli.config.display()
+                );
+            } else {
+                let template = r#"[detection]
+languages = ["rust", "python", "typescript"]
+fallback = "content-hash"
+
+[triage]
+provider = "anthropic"
+model = "claude-opus-4-5"
+
+[remediation]
+agent_command = "your-agent-command"
+auto_merge_severities = ["no_update"]
+
+[repos]
+docs = [
+  { url = "https://github.com/your-org/docs.git", path = ".", ref = "main" },
+]
+
+[[agents]]
+name = "claude"
+global_steering = "~/.claude/steering"
+workspace_steering = ".claude/steering"
+agents_file = "CLAUDE.md"
+skill_dir = ""
+"#;
+                std::fs::write(&cli.config, template)
+                    .with_context(|| format!("failed to write {}", cli.config.display()))?;
+                println!("Created {} — edit it with your repo URLs and agent config.", cli.config.display());
+            }
         }
         Command::Link { files } => {
-            println!("steer link: not yet implemented ({} files)", files.len());
+            let code_repo_path = std::env::current_dir()?;
+            let sha = steer::detection::git::head_sha(&code_repo_path)
+                .unwrap_or_else(|_| "unknown".to_string());
+
+            let paths_to_process: Vec<std::path::PathBuf> = if files.is_empty() {
+                // Glob all .md files under the current directory.
+                let pattern = format!("{}/**/*.md", code_repo_path.display());
+                glob::glob(&pattern)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .collect()
+            } else {
+                files
+            };
+
+            for file_path in &paths_to_process {
+                // Only process files with steer frontmatter.
+                let doc = match steer::frontmatter::parse_doc_file(file_path, "") {
+                    Some(d) => d,
+                    None => continue,
+                };
+
+                let n = doc.frontmatter.anchors.len();
+                for anchor in &doc.frontmatter.anchors {
+                    if let Err(e) = steer::frontmatter::update_provenance(
+                        file_path,
+                        &anchor.path,
+                        anchor.symbol.as_deref(),
+                        &sha,
+                    ) {
+                        eprintln!("warning: {}", e);
+                    }
+                }
+                println!("Linked {} ({} anchors stamped at {})", file_path.display(), n, sha);
+            }
         }
         Command::Check { report } => {
             // Read config to get the repo name (best-effort; fall back to cwd name).
@@ -242,16 +310,169 @@ fn main() -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&summary)?);
         }
         Command::Status => {
-            println!("steer status: not yet implemented");
+            let docs_path_str =
+                std::env::var("STEER_DOCS_PATH").unwrap_or_else(|_| "docs".to_string());
+            let docs_path = std::path::PathBuf::from(&docs_path_str);
+
+            let cwd = std::env::current_dir()?;
+            let code_repo_url = std::env::var("STEER_CODE_REPO_URL")
+                .unwrap_or_else(|_| format!("file://{}", cwd.display()));
+
+            let docs = steer::frontmatter::scan_docs(&docs_path, &code_repo_url, None);
+
+            if docs.is_empty() {
+                println!("No docs with steer frontmatter found in {}", docs_path.display());
+            } else {
+                for doc in &docs {
+                    let group = doc.frontmatter.group.as_deref().unwrap_or("(no group)");
+                    println!("{} [group: {}]", doc.path, group);
+                    for anchor in &doc.frontmatter.anchors {
+                        let symbol_part = anchor
+                            .symbol
+                            .as_deref()
+                            .map(|s| format!("#{}", s))
+                            .unwrap_or_default();
+                        println!(
+                            "  anchor: {}{}  provenance: {}",
+                            anchor.path, symbol_part, anchor.provenance
+                        );
+                    }
+                }
+            }
         }
         Command::Sync { files } => {
-            println!("steer sync: not yet implemented ({} files)", files.len());
+            let code_repo_path = std::env::current_dir()?;
+            let sha = steer::detection::git::head_sha(&code_repo_path)
+                .unwrap_or_else(|_| "unknown".to_string());
+
+            let paths_to_process: Vec<std::path::PathBuf> = if files.is_empty() {
+                let pattern = format!("{}/**/*.md", code_repo_path.display());
+                glob::glob(&pattern)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .collect()
+            } else {
+                files
+            };
+
+            let mut total_anchors = 0usize;
+            for file_path in &paths_to_process {
+                let doc = match steer::frontmatter::parse_doc_file(file_path, "") {
+                    Some(d) => d,
+                    None => continue,
+                };
+
+                for anchor in &doc.frontmatter.anchors {
+                    if let Err(e) = steer::frontmatter::update_provenance(
+                        file_path,
+                        &anchor.path,
+                        anchor.symbol.as_deref(),
+                        &sha,
+                    ) {
+                        eprintln!("warning: {}", e);
+                    } else {
+                        total_anchors += 1;
+                    }
+                }
+            }
+
+            println!("Synced {} anchors to provenance {}", total_anchors, sha);
         }
-        Command::Install { group, agent, .. } => {
-            println!(
-                "steer install: not yet implemented (group: {:?}, agent: {:?})",
-                group, agent
-            );
+        Command::Install { group, agent, link, workspace, check } => {
+            let config = steer::config::Config::from_file(&cli.config)
+                .context("failed to load steer.toml — run `steer init` first")?;
+
+            // Determine install mode: explicit flags take priority, then CI env detection
+            let is_ci = std::env::var("CI").is_ok()
+                || std::env::var("GITHUB_ACTIONS").is_ok()
+                || std::env::var("GITLAB_CI").is_ok();
+            let use_workspace = workspace || (is_ci && !link);
+
+            // Collect agent platforms to install to
+            let platforms: Vec<&steer::config::AgentPlatform> = match &agent {
+                Some(name) => {
+                    if let Some(p) = config.find_agent(name) {
+                        vec![p]
+                    } else {
+                        anyhow::bail!("unknown agent platform: {}", name);
+                    }
+                }
+                None => config.agents.iter().collect(),
+            };
+
+            // Process each configured doc repo
+            for doc_repo in &config.repos.docs {
+                // --check: skip if already up to date
+                if check {
+                    match steer::install::repo_cache::is_up_to_date(&doc_repo.url, &doc_repo.git_ref) {
+                        Ok(true) => {
+                            eprintln!("steering docs are up to date ({})", doc_repo.url);
+                            continue;
+                        }
+                        Ok(false) => {}
+                        Err(e) => eprintln!("warning: could not check staleness: {}", e),
+                    }
+                }
+
+                // Clone or update the cached repo
+                let source_dir = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
+                    .with_context(|| format!("failed to get/clone repo {}", doc_repo.url))?;
+
+                // Install to each agent platform
+                for platform in &platforms {
+                    let target_dir = if use_workspace {
+                        let workspace_steering = shellexpand::tilde(&platform.workspace_steering).into_owned();
+                        std::path::PathBuf::from(workspace_steering)
+                    } else {
+                        let global_steering = shellexpand::tilde(&platform.global_steering).into_owned();
+                        std::path::PathBuf::from(global_steering)
+                    };
+
+                    let agents_file = if platform.agents_file.is_empty() {
+                        None
+                    } else {
+                        Some(platform.agents_file.as_str())
+                    };
+
+                    let skill_dir = if platform.skill_dir.is_empty() {
+                        None
+                    } else {
+                        let expanded = shellexpand::tilde(&platform.skill_dir).into_owned();
+                        Some(std::path::PathBuf::from(expanded))
+                    };
+
+                    if use_workspace {
+                        steer::install::install_to_workspace(
+                            &source_dir,
+                            &target_dir,
+                            group.as_deref(),
+                            agents_file,
+                            skill_dir.as_deref(),
+                        ).with_context(|| format!("install_to_workspace failed for {}", platform.name))?;
+
+                        // Add to .git/info/exclude
+                        if let Ok(cwd) = std::env::current_dir() {
+                            let rel = target_dir.strip_prefix(&cwd).unwrap_or(&target_dir);
+                            let _ = steer::install::add_to_git_exclude(&cwd, &rel.to_string_lossy());
+                        }
+                    } else {
+                        steer::install::install_as_links(
+                            &source_dir,
+                            &target_dir,
+                            group.as_deref(),
+                            agents_file,
+                            skill_dir.as_deref(),
+                        ).with_context(|| format!("install_as_links failed for {}", platform.name))?;
+                    }
+
+                    eprintln!(
+                        "installed steering to {} ({})",
+                        target_dir.display(),
+                        platform.name
+                    );
+                }
+            }
         }
     }
 

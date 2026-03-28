@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::Context;
 use serde::Deserialize;
 
 use crate::models::{DocFile, SteerFrontmatter};
@@ -82,4 +83,81 @@ pub fn scan_docs(dir: &Path, doc_repo: &str, group_filter: Option<&str>) -> Vec<
             }
         })
         .collect()
+}
+
+/// Update the provenance SHA for a specific anchor in a markdown file.
+/// Rewrites the file in place, preserving all non-steer frontmatter.
+pub fn update_provenance(
+    path: &Path,
+    anchor_path: &str,
+    anchor_symbol: Option<&str>,
+    new_provenance: &str,
+) -> Result<(), anyhow::Error> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", path.display()))?;
+
+    let (yaml, body) = extract_frontmatter(&text)
+        .ok_or_else(|| anyhow::anyhow!("no frontmatter in {}", path.display()))?;
+
+    // Parse as a generic YAML mapping to preserve all keys.
+    let mut root: serde_yaml::Value = serde_yaml::from_str(yaml)
+        .with_context(|| format!("failed to parse frontmatter YAML in {}", path.display()))?;
+
+    // Navigate into root["steer"]["anchors"] and find the matching anchor.
+    let anchors = root
+        .get_mut("steer")
+        .and_then(|s| s.get_mut("anchors"))
+        .and_then(|a| a.as_sequence_mut())
+        .ok_or_else(|| anyhow::anyhow!("no steer.anchors in {}", path.display()))?;
+
+    let mut updated = false;
+    for anchor in anchors.iter_mut() {
+        let path_match = anchor
+            .get("path")
+            .and_then(|v| v.as_str())
+            .map(|p| p == anchor_path)
+            .unwrap_or(false);
+
+        let symbol_match = match anchor_symbol {
+            Some(sym) => anchor
+                .get("symbol")
+                .and_then(|v| v.as_str())
+                .map(|s| s == sym)
+                .unwrap_or(false),
+            None => anchor.get("symbol").is_none() || anchor["symbol"].is_null(),
+        };
+
+        if path_match && symbol_match {
+            if let Some(map) = anchor.as_mapping_mut() {
+                map.insert(
+                    serde_yaml::Value::String("provenance".to_string()),
+                    serde_yaml::Value::String(new_provenance.to_string()),
+                );
+            }
+            updated = true;
+            break;
+        }
+    }
+
+    if !updated {
+        return Err(anyhow::anyhow!(
+            "anchor path={:?} symbol={:?} not found in {}",
+            anchor_path,
+            anchor_symbol,
+            path.display()
+        ));
+    }
+
+    // Re-serialize to YAML and reconstruct the full markdown.
+    let new_yaml = serde_yaml::to_string(&root)
+        .context("failed to serialize updated frontmatter")?;
+
+    // serde_yaml::to_string adds a trailing newline; strip it so our delimiters are clean.
+    let new_yaml = new_yaml.trim_end_matches('\n');
+
+    let new_text = format!("---\n{}\n---\n{}", new_yaml, body);
+    std::fs::write(path, new_text)
+        .with_context(|| format!("failed to write {}", path.display()))?;
+
+    Ok(())
 }
