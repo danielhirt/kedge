@@ -5,7 +5,7 @@ use std::process::Command;
 
 /// Returns the cache directory path for a given repo URL.
 /// Uses the first 12 characters of the SHA-256 hash of the URL.
-pub fn cache_dir_for(repo_url: &str) -> Result<PathBuf> {
+fn cache_dir_for(repo_url: &str) -> Result<PathBuf> {
     let mut hasher = Sha256::new();
     hasher.update(repo_url.as_bytes());
     let hash = hasher.finalize();

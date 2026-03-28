@@ -120,13 +120,9 @@ pub fn apply_classifications(
                 })
                 .collect();
 
-            // Doc severity = max of all anchor severities.
-            let severities: Vec<Severity> = triaged_anchors.iter().map(|a| a.severity).collect();
-            let doc_severity = if severities.is_empty() {
-                Severity::NoUpdate
-            } else {
-                Severity::max_of(&severities)
-            };
+            let doc_severity = Severity::max_of(
+                &triaged_anchors.iter().map(|a| a.severity).collect::<Vec<_>>(),
+            );
 
             TriagedDoc {
                 doc: drifted_doc.doc.clone(),

@@ -9,7 +9,7 @@ use crate::frontmatter::scan_docs;
 use crate::models::{CleanDoc, DriftReport, DriftedAnchor, DriftedDoc};
 
 use self::fingerprint::{compute_sig, SIG_PREFIX};
-use self::git::{diff_since, diff_summary, head_sha, read_file_at_rev};
+use self::git::{diff_with_summary, head_sha, read_file_at_rev};
 
 /// Normalise a git remote URL to a canonical path string for comparison.
 fn repo_path_from_url(url: &str) -> &str {
@@ -82,21 +82,10 @@ pub fn detect_drift(
             };
 
             if is_drifted {
-                // Generate diff for context (best-effort — may fail for sig: provenance
-                // if no matching commit exists, which is fine)
-                let diff = if anchor.provenance.starts_with(SIG_PREFIX) {
-                    // No git commit to diff against — provide empty diff
-                    // The triage model works from the doc content + current code
-                    String::new()
+                let (diff, diff_sum) = if anchor.provenance.starts_with(SIG_PREFIX) {
+                    (String::new(), "content fingerprint changed".to_string())
                 } else {
-                    diff_since(code_repo_path, &anchor.provenance, &anchor.path)
-                        .unwrap_or_default()
-                };
-
-                let diff_sum = if anchor.provenance.starts_with(SIG_PREFIX) {
-                    "content fingerprint changed".to_string()
-                } else {
-                    diff_summary(code_repo_path, &anchor.provenance, &anchor.path)
+                    diff_with_summary(code_repo_path, &anchor.provenance, &anchor.path)
                         .unwrap_or_default()
                 };
 

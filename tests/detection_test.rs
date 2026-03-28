@@ -49,7 +49,7 @@ fn generates_diff_between_commits() {
     std::fs::write(dir.path().join("code.java"), "class Foo { int x; }").unwrap();
     Command::new("git").args(["add", "code.java"]).current_dir(dir.path()).output().unwrap();
     Command::new("git").args(["commit", "-m", "add field"]).current_dir(dir.path()).output().unwrap();
-    let diff = steer::detection::git::diff_since(dir.path(), &sha1, "code.java").unwrap();
+    let (diff, _summary) = steer::detection::git::diff_with_summary(dir.path(), &sha1, "code.java").unwrap();
     assert!(diff.contains("class Foo"));
     assert!(diff.contains("int x"));
 }

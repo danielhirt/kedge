@@ -35,45 +35,42 @@ pub fn read_file_at_rev(repo_path: &Path, rev: &str, file_path: &str) -> Result<
     Ok(content)
 }
 
-/// Generates a unified diff for a file between a revision and current HEAD.
-pub fn diff_since(repo_path: &Path, from_rev: &str, file_path: &str) -> Result<String> {
+/// Returns the unified diff and a stat summary for a file between a revision
+/// and HEAD in a single git subprocess.
+pub fn diff_with_summary(
+    repo_path: &Path,
+    from_rev: &str,
+    file_path: &str,
+) -> Result<(String, String)> {
     let output = Command::new("git")
-        .args(["diff", from_rev, "HEAD", "--", file_path])
+        .args(["diff", "--stat", "-p", from_rev, "HEAD", "--", file_path])
         .current_dir(repo_path)
         .output()
-        .with_context(|| format!("Failed to run git diff from '{}' for '{}'", from_rev, file_path))?;
+        .with_context(|| format!("failed to run git diff for '{}' from '{}'", file_path, from_rev))?;
 
-    let diff = String::from_utf8(output.stdout)
+    let full = String::from_utf8(output.stdout)
         .context("git diff output is not valid UTF-8")?;
 
-    Ok(diff)
+    // --stat output comes before the patch; split at the first "diff --git" line
+    let (summary, diff) = match full.find("\ndiff --git ") {
+        Some(pos) => (full[..pos].to_string(), full[pos + 1..].to_string()),
+        None => (full.clone(), full),
+    };
+
+    Ok((diff, summary))
 }
 
 /// Returns the SHA of HEAD.
 pub fn head_sha(repo_path: &Path) -> Result<String> {
     let repo = Repository::open(repo_path)
-        .with_context(|| format!("Failed to open repository at {:?}", repo_path))?;
+        .with_context(|| format!("failed to open repository at {}", repo_path.display()))?;
 
-    let head = repo.head().context("Failed to get HEAD reference")?;
+    let head = repo.head().context("failed to get HEAD reference")?;
 
     let oid = head
         .peel_to_commit()
-        .context("Failed to peel HEAD to commit")?
+        .context("failed to peel HEAD to commit")?
         .id();
 
     Ok(oid.to_string())
-}
-
-/// Returns a short diff summary (--stat) for a file between a revision and current HEAD.
-pub fn diff_summary(repo_path: &Path, from_rev: &str, file_path: &str) -> Result<String> {
-    let output = Command::new("git")
-        .args(["diff", "--stat", from_rev, "HEAD", "--", file_path])
-        .current_dir(repo_path)
-        .output()
-        .with_context(|| format!("Failed to run git diff --stat from '{}' for '{}'", from_rev, file_path))?;
-
-    let summary = String::from_utf8(output.stdout)
-        .context("git diff --stat output is not valid UTF-8")?;
-
-    Ok(summary)
 }

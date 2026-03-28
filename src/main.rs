@@ -16,10 +16,7 @@ fn extract_mr_url(output: &str) -> Option<String> {
 
 /// Resolve the docs directory path. Prefers STEER_DOCS_PATH env var,
 /// otherwise clones from config's repos.docs via repo_cache.
-fn resolve_docs_path(
-    config: &steer::config::Config,
-    _config_path: &std::path::Path,
-) -> anyhow::Result<std::path::PathBuf> {
+fn resolve_docs_path(config: &steer::config::Config) -> anyhow::Result<std::path::PathBuf> {
     if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
         return Ok(std::path::PathBuf::from(p));
     }
@@ -32,6 +29,61 @@ fn resolve_docs_path(
     } else {
         Ok(cached.join(&doc_repo.path))
     }
+}
+
+/// Compute content-addressed sigs for all anchors in a doc file and update
+/// provenance in a single read/write. Returns number of anchors stamped.
+fn stamp_anchors(
+    code_repo_path: &std::path::Path,
+    doc_file: &std::path::Path,
+    anchors: &[steer::models::Anchor],
+) -> usize {
+    let mut updates: Vec<(&str, Option<&str>, String)> = Vec::new();
+
+    for anchor in anchors {
+        let code_file = code_repo_path.join(&anchor.path);
+        match std::fs::read_to_string(&code_file) {
+            Ok(content) => {
+                let sig = steer::detection::fingerprint::compute_sig(
+                    &content,
+                    &anchor.path,
+                    anchor.symbol.as_deref(),
+                );
+                updates.push((&anchor.path, anchor.symbol.as_deref(), sig));
+            }
+            Err(e) => {
+                eprintln!("warning: cannot read {}: {}", anchor.path, e);
+            }
+        }
+    }
+
+    let stamped = updates.len();
+    if !updates.is_empty() {
+        let batch: Vec<(&str, Option<&str>, &str)> = updates
+            .iter()
+            .map(|(p, s, sig)| (*p, *s, sig.as_str()))
+            .collect();
+        if let Err(e) = steer::frontmatter::update_provenance_batch(doc_file, &batch) {
+            eprintln!("warning: failed to update provenance in {}: {}", doc_file.display(), e);
+            return 0;
+        }
+    }
+    stamped
+}
+
+/// Read doc contents from disk for each drifted doc in a drift report.
+fn collect_doc_contents(
+    docs_path: &std::path::Path,
+    report: &steer::models::DriftReport,
+) -> std::collections::HashMap<String, String> {
+    let mut contents = std::collections::HashMap::new();
+    for drifted_doc in &report.drifted {
+        let doc_path = docs_path.join(&drifted_doc.doc);
+        if let Ok(content) = std::fs::read_to_string(&doc_path) {
+            contents.insert(drifted_doc.doc.clone(), content);
+        }
+    }
+    contents
 }
 
 fn main() -> anyhow::Result<()> {
@@ -95,33 +147,7 @@ skill_dir = ""
                 };
 
                 let n = doc.frontmatter.anchors.len();
-                let mut stamped = 0;
-                for anchor in &doc.frontmatter.anchors {
-                    // Read the current file and compute a content-addressed sig
-                    let code_file = code_repo_path.join(&anchor.path);
-                    let sig = match std::fs::read_to_string(&code_file) {
-                        Ok(content) => steer::detection::fingerprint::compute_sig(
-                            &content,
-                            &anchor.path,
-                            anchor.symbol.as_deref(),
-                        ),
-                        Err(e) => {
-                            eprintln!("warning: cannot read {}: {}", anchor.path, e);
-                            continue;
-                        }
-                    };
-
-                    if let Err(e) = steer::frontmatter::update_provenance(
-                        file_path,
-                        &anchor.path,
-                        anchor.symbol.as_deref(),
-                        &sig,
-                    ) {
-                        eprintln!("warning: {}", e);
-                    } else {
-                        stamped += 1;
-                    }
-                }
+                let stamped = stamp_anchors(&code_repo_path, file_path, &doc.frontmatter.anchors);
                 println!("Linked {} ({}/{} anchors stamped)", file_path.display(), stamped, n);
             }
         }
@@ -140,7 +166,7 @@ skill_dir = ""
             } else {
                 let config = steer::config::Config::from_file(&cli.config)
                     .context("failed to load steer.toml — run `steer init` first")?;
-                resolve_docs_path(&config, &cli.config)?
+                resolve_docs_path(&config)?
             };
 
             let drift_report = steer::detection::detect_drift(
@@ -182,46 +208,22 @@ skill_dir = ""
             let drift_report: steer::models::DriftReport = serde_json::from_str(&json_input)
                 .context("failed to parse drift report JSON")?;
 
-            // Resolve docs path for reading doc contents
             let config = steer::config::Config::from_file(&cli.config).ok();
-            let docs_path = if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
-                std::path::PathBuf::from(p)
-            } else if let Some(ref cfg) = config {
-                if let Some(doc_repo) = cfg.repos.docs.first() {
-                    let cached = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
-                        .with_context(|| format!("failed to clone docs repo {}", doc_repo.url))?;
-                    if doc_repo.path.is_empty() { cached } else { cached.join(&doc_repo.path) }
-                } else {
-                    std::path::PathBuf::from("docs")
-                }
-            } else {
-                std::path::PathBuf::from("docs")
+            let docs_path = match &config {
+                Some(cfg) => resolve_docs_path(cfg)?,
+                None => std::env::var("STEER_DOCS_PATH")
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|_| std::path::PathBuf::from("docs")),
             };
 
-            let mut doc_contents: std::collections::HashMap<String, String> =
-                std::collections::HashMap::new();
-            for drifted_doc in &drift_report.drifted {
-                let doc_path = docs_path.join(&drifted_doc.doc);
-                match std::fs::read_to_string(&doc_path) {
-                    Ok(content) => {
-                        doc_contents.insert(drifted_doc.doc.clone(), content);
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "warning: could not read doc {}: {}",
-                            doc_path.display(),
-                            e
-                        );
-                    }
-                }
-            }
+            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
 
             let provider = config.as_ref()
                 .map(|c| c.triage.provider.clone())
-                .unwrap_or_else(|| std::env::var("STEER_AI_PROVIDER").unwrap_or_else(|_| "anthropic".to_string()));
+                .unwrap_or_else(|| "anthropic".to_string());
             let model = config.as_ref()
                 .map(|c| c.triage.model.clone())
-                .unwrap_or_else(|| std::env::var("STEER_AI_MODEL").unwrap_or_else(|_| "claude-haiku-4-5-20251001".to_string()));
+                .unwrap_or_else(|| "claude-haiku-4-5-20251001".to_string());
 
             let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
             let triaged = rt.block_on(steer::triage::triage_drift_report(
@@ -246,9 +248,8 @@ skill_dir = ""
                 format!("file://{}", code_repo_path.display())
             });
 
-            let docs_path = resolve_docs_path(&config, &cli.config)?;
+            let docs_path = resolve_docs_path(&config)?;
 
-            // 1. Detection
             let drift_report = steer::detection::detect_drift(
                 &code_repo_path,
                 &docs_path,
@@ -269,29 +270,17 @@ skill_dir = ""
             }
 
             let current_commit = drift_report.commit.clone();
-
-            // 3. Triage
-            let mut doc_contents: std::collections::HashMap<String, String> =
-                std::collections::HashMap::new();
-            for drifted_doc in &drift_report.drifted {
-                let doc_path = docs_path.join(&drifted_doc.doc);
-                if let Ok(content) = std::fs::read_to_string(&doc_path) {
-                    doc_contents.insert(drifted_doc.doc.clone(), content);
-                }
-            }
-
-            let provider = config.triage.provider.clone();
-            let model = config.triage.model.clone();
+            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
 
             let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
             let triaged = rt.block_on(steer::triage::triage_drift_report(
                 &drift_report,
-                &provider,
-                &model,
+                &config.triage.provider,
+                &config.triage.model,
                 &doc_contents,
             ))?;
 
-            // 4. Partition
+            // Partition
             let (to_remediate, to_sync) =
                 steer::remediation::partition_by_action(&triaged);
 
@@ -329,40 +318,27 @@ skill_dir = ""
                 }
             }
 
-            // 6. Advance provenance for no_update anchors (content-addressed)
-            let mut provenance_advanced: Vec<steer::models::ProvenanceSynced> = Vec::new();
-            for doc in &to_sync {
-                let doc_file = docs_path.join(&doc.doc);
-                let mut synced = 0usize;
-                for anchor in &doc.anchors {
-                    // Compute current content sig for the anchor
-                    let code_file = code_repo_path.join(&anchor.path);
-                    let sig = match std::fs::read_to_string(&code_file) {
-                        Ok(content) => steer::detection::fingerprint::compute_sig(
-                            &content,
-                            &anchor.path,
-                            anchor.symbol.as_deref(),
-                        ),
-                        Err(_) => continue,
-                    };
-
-                    if let Err(e) = steer::frontmatter::update_provenance(
-                        &doc_file,
-                        &anchor.path,
-                        anchor.symbol.as_deref(),
-                        &sig,
-                    ) {
-                        eprintln!("warning: failed to sync provenance for {}: {}", doc.doc, e);
-                    } else {
-                        synced += 1;
+            let provenance_advanced: Vec<steer::models::ProvenanceSynced> = to_sync
+                .iter()
+                .map(|doc| {
+                    let doc_file = docs_path.join(&doc.doc);
+                    // Convert TriagedAnchors to Anchors for stamp_anchors
+                    let anchors: Vec<steer::models::Anchor> = doc.anchors.iter().map(|a| {
+                        steer::models::Anchor {
+                            repo: String::new(),
+                            path: a.path.clone(),
+                            symbol: a.symbol.clone(),
+                            provenance: a.provenance.clone(),
+                        }
+                    }).collect();
+                    let synced = stamp_anchors(&code_repo_path, &doc_file, &anchors);
+                    steer::models::ProvenanceSynced {
+                        doc: doc.doc.clone(),
+                        anchors_synced: synced,
+                        reason: "no_update — code changes did not affect documentation accuracy".to_string(),
                     }
-                }
-                provenance_advanced.push(steer::models::ProvenanceSynced {
-                    doc: doc.doc.clone(),
-                    anchors_synced: synced,
-                    reason: "no_update — code changes did not affect documentation accuracy".to_string(),
-                });
-            }
+                })
+                .collect();
 
             // 7. Output summary
             let summary = steer::models::RemediationSummary {
@@ -423,32 +399,7 @@ skill_dir = ""
                     Some(d) => d,
                     None => continue,
                 };
-
-                for anchor in &doc.frontmatter.anchors {
-                    let code_file = code_repo_path.join(&anchor.path);
-                    let sig = match std::fs::read_to_string(&code_file) {
-                        Ok(content) => steer::detection::fingerprint::compute_sig(
-                            &content,
-                            &anchor.path,
-                            anchor.symbol.as_deref(),
-                        ),
-                        Err(e) => {
-                            eprintln!("warning: cannot read {}: {}", anchor.path, e);
-                            continue;
-                        }
-                    };
-
-                    if let Err(e) = steer::frontmatter::update_provenance(
-                        file_path,
-                        &anchor.path,
-                        anchor.symbol.as_deref(),
-                        &sig,
-                    ) {
-                        eprintln!("warning: {}", e);
-                    } else {
-                        total_anchors += 1;
-                    }
-                }
+                total_anchors += stamp_anchors(&code_repo_path, file_path, &doc.frontmatter.anchors);
             }
 
             println!("Synced {} anchors with content-addressed provenance", total_anchors);
