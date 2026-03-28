@@ -4,7 +4,7 @@ Provenance is the fingerprint stored in a steering file anchor that represents t
 
 ## Content-addressed provenance (`sig:`)
 
-This is the default and recommended format. The provenance value is a 16-hex-character AST fingerprint prefixed with `sig:`:
+The default and recommended format. The provenance value is a 16-hex-character AST fingerprint prefixed with `sig:`:
 
 ```yaml
 provenance: "sig:a1b2c3d4e5f67890"
@@ -30,7 +30,7 @@ provenance: "sig:a1b2c3d4e5f67890"
 
 ### 64 bits of collision resistance
 
-The `sig:` value is 16 hex characters = 64 bits. This is not cryptographic security -- it's drift detection. The probability of an accidental collision is negligible for this use case, and the truncation keeps frontmatter readable.
+The `sig:` value is 16 hex characters = 64 bits. The goal is drift detection, not cryptographic security. The probability of an accidental collision is negligible for this use case, and the truncation keeps frontmatter readable.
 
 ## Legacy SHA-based provenance
 
@@ -47,11 +47,11 @@ provenance: "abc123def4567890abcdef1234567890abcdef12"
 3. Compute AST fingerprints for both versions
 4. If the fingerprints differ, the anchor has drifted
 
-This requires the git history to contain the provenance commit, so shallow clones may not work. The detection output includes a full git diff for SHA-based anchors.
+The git history must contain the provenance commit, so shallow clones may not work. The detection output includes a full git diff for SHA-based anchors.
 
 ### When to use SHA provenance
 
-SHA provenance is supported for backward compatibility. Prefer `sig:` provenance for new steering files. Migration is simple -- run `kedge link` to replace SHA values with `sig:` fingerprints.
+SHA provenance is supported for backward compatibility. Prefer `sig:` provenance for new steering files. To migrate, run `kedge link` to replace SHA values with `sig:` fingerprints.
 
 ## Stamping provenance
 
@@ -70,7 +70,7 @@ Use after:
 
 ### `kedge sync`
 
-Same as `link` -- recomputes fingerprints and writes them. The distinction is semantic: `sync` is for advancing provenance when code changed but the docs are still accurate (e.g., internal refactors).
+Same as `link`: recomputes fingerprints and writes them. The distinction is semantic. Use `sync` to advance provenance when code changed but the docs are still accurate (e.g., internal refactors).
 
 ```bash
 kedge sync
@@ -79,7 +79,7 @@ kedge sync
 
 ### Automatic advancement during `kedge update`
 
-During the full pipeline, anchors triaged as `no_update` have their provenance automatically advanced without invoking the agent. This is logged in the `provenance_advanced` field of the `RemediationSummary`.
+During the full pipeline, kedge automatically advances provenance for anchors triaged as `no_update` without invoking the agent. kedge logs these in the `provenance_advanced` field of the `RemediationSummary`.
 
 ## Provenance lifecycle
 

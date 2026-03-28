@@ -42,7 +42,7 @@ cargo install kedge
 
 <div class="detail-section">
 <h3>Enterprise CI native</h3>
-<p>Runs as an MR gate (<code>kedge check</code>, exit 1 on drift) or a scheduled pipeline (<code>kedge update</code> for full detect-triage-remediate). GitLab CI and GitHub Actions examples included.</p>
+<p>Runs as an MR gate (<code>kedge check</code>, exit 1 on drift) or a scheduled pipeline (<code>kedge update</code> for full detect-triage-remediate). The repo includes GitLab CI and GitHub Actions examples.</p>
 </div>
 
 <div class="detail-section">

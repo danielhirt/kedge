@@ -98,20 +98,20 @@ src/
 
 ### No AI in detection
 
-Detection is fully deterministic. AST fingerprinting uses tree-sitter (compiled C grammars) with no AI inference. This keeps detection fast, free, and auditable.
+Detection is fully deterministic. AST fingerprinting uses tree-sitter (compiled C grammars) with no AI inference, keeping detection fast, free, and auditable.
 
 ### Tree-sitter for AST parsing
 
-Tree-sitter grammars are fast (native C), incremental, and available for most languages. Each grammar is a Cargo dependency, so adding a language is just adding a crate.
+Tree-sitter grammars are fast (native C), incremental, and available for most languages. Each grammar is a Cargo dependency, so adding a language means adding a crate.
 
 ### Agent agnostic
 
-Remediation delegates to an external process via stdin/stdout. kedge doesn't know or care what the agent is -- it could be Kiro, Claude Code, a shell script, or any other tool. This makes kedge composable with any AI coding agent.
+Remediation delegates to an external process via stdin/stdout. kedge doesn't know or care what the agent is. It could be Kiro, Claude Code, a shell script, or any other tool. kedge composes with any AI coding agent.
 
 ### Git CLI over libgit2
 
-kedge shells out to `git` for operations like `show`, `diff`, and `rev-parse`. This avoids the complexity of libgit2 bindings, works with any git version the user has installed, and handles authentication (SSH keys, credential helpers) without kedge needing to know about them.
+kedge shells out to `git` for operations like `show`, `diff`, and `rev-parse`. Shelling out avoids the complexity of libgit2 bindings, works with any git version the user has installed, and handles authentication (SSH keys, credential helpers) without kedge needing to know about them.
 
 ### Single binary, no runtime dependencies
 
-The binary is statically linked with rustls (no OpenSSL). The only runtime requirement is `git` on PATH.
+The binary links statically with rustls (no OpenSSL). The only runtime requirement is `git` on PATH.

@@ -7,7 +7,7 @@ cargo build              # debug build
 cargo build --release    # optimized release build
 ```
 
-kedge compiles to a single static binary with no runtime dependencies beyond `git` on PATH. It uses rustls for TLS (no OpenSSL).
+kedge compiles to a single static binary with no runtime dependencies beyond `git` on PATH. kedge uses rustls for TLS (no OpenSSL).
 
 ## Test
 
@@ -19,7 +19,7 @@ cargo test --test detection_test -- detect_drift   # single test function
 
 ### Test structure
 
-All tests live in `tests/` -- there are no `#[test]` blocks in `src/`. Test files:
+All tests live in `tests/`. No `#[test]` blocks exist in `src/`. Test files:
 
 | File | What it tests |
 |------|--------------|
@@ -41,17 +41,17 @@ All tests live in `tests/` -- there are no `#[test]` blocks in `src/`. Test file
 
 Fixtures in `tests/fixtures/`:
 
-- **Source files:** `AuthService.java`, `handler.go`, `component.tsx`, `auth.py`, `handler.rs`, `form.xml` -- sample code for fingerprint tests
-- **Config:** `kedge.toml` -- sample configuration
-- **Steering files:** `steering_with_anchors.md`, `steering_no_kedge.md` -- sample docs with and without kedge frontmatter
-- **`java-project/`** -- a complete Java project with git history for integration tests
-- **`java-project-docs/`** -- a matching docs repo with steering files
+- **Source files:** `AuthService.java`, `handler.go`, `component.tsx`, `auth.py`, `handler.rs`, `form.xml`. Sample code for fingerprint tests.
+- **Config:** `kedge.toml`. Sample configuration.
+- **Steering files:** `steering_with_anchors.md`, `steering_no_kedge.md`. Sample docs with and without kedge frontmatter.
+- **`java-project/`** A complete Java project with git history for integration tests.
+- **`java-project-docs/`** A matching docs repo with steering files.
 
 ### Test conventions
 
 - Use `tempfile::TempDir` for filesystem tests (auto-cleanup)
 - Create real git repos with `git init` for tests that need git operations
-- Tests are fast (~100ms total) -- no network calls, no AI inference
+- Tests are fast (~100ms total): no network calls, no AI inference
 
 ## Lint
 

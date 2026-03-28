@@ -6,9 +6,9 @@ kedge's remediation layer invokes an external agent process to update documentat
 
 kedge is agent-agnostic. Any process that reads JSON from stdin and writes output to stdout works. Common choices:
 
-- **Kiro** -- Amazon's AI coding agent
-- **Claude Code** -- Anthropic's CLI agent
-- **Custom scripts** -- wrap any tool or LLM behind a shell command
+- **Kiro**, Amazon's AI coding agent
+- **Claude Code**, Anthropic's CLI agent
+- **Custom scripts** that wrap any tool or LLM behind a shell command
 
 ## Configuration
 
@@ -114,11 +114,11 @@ Batch mode:
 
 ### Plain text fallback
 
-If the agent doesn't output valid JSON, kedge scans stdout for URLs starting with `https://` or `http://` and uses the first match as the MR link.
+If the agent does not output valid JSON, kedge scans stdout for URLs starting with `https://` or `http://` and uses the first match as the MR link.
 
 ## Auto-merge
 
-The `auto_merge_severities` config controls which severity levels get `"auto_merge": true` in the payload. The agent decides what to do with this flag -- typically it means the MR can be merged without human review.
+The `auto_merge_severities` config controls which severity levels get `"auto_merge": true` in the payload. The agent decides what to do with this flag. In most cases, it means the MR can be merged without human review.
 
 ```toml
 auto_merge_severities = ["no_update", "minor"]
@@ -193,4 +193,4 @@ agents_file = "CLAUDE.md"
 skill_dir = ""
 ```
 
-This configuration is used by `kedge install` only -- it tells kedge where to place doc files so each agent platform can find them. It does not affect how the agent command is invoked. The paths are platform-specific: Kiro uses `.kiro/steering/`, but Claude Code has no built-in "steering" directory, so use any path the agent can read (e.g., `docs/`).
+`kedge install` uses this configuration to place doc files where each agent platform can find them. It does not affect how the agent command is invoked. The paths are platform-specific: Kiro uses `.kiro/steering/`, but Claude Code has no built-in "steering" directory, so use any path the agent can read (e.g., `docs/`).

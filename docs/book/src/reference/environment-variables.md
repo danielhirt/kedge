@@ -19,7 +19,7 @@ provider = "anthropic"
 api_key_env = "MY_CUSTOM_ANTHROPIC_KEY"
 ```
 
-kedge will read `MY_CUSTOM_ANTHROPIC_KEY` instead of `ANTHROPIC_API_KEY`.
+kedge reads `MY_CUSTOM_ANTHROPIC_KEY` instead of `ANTHROPIC_API_KEY`.
 
 ## Repository overrides
 
@@ -89,4 +89,4 @@ triage_env = {
 }
 ```
 
-These are passed directly to the subprocess environment alongside any inherited variables.
+kedge passes these to the subprocess environment alongside any inherited variables.

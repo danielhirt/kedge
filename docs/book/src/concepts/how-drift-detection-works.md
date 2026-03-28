@@ -1,6 +1,6 @@
 # How Drift Detection Works
 
-Detection is the first layer of kedge's pipeline. It is **deterministic and uses no AI** -- it compares AST fingerprints to identify which documentation anchors have drifted from their last-known-good state.
+Detection is the first layer of kedge's pipeline. It is **deterministic and uses no AI**. It compares AST fingerprints to identify which documentation anchors have drifted from their last-known-good state.
 
 ## Overview
 
@@ -45,7 +45,7 @@ The comparison depends on the provenance format:
 
 **Content-addressed (`sig:` prefix):**
 
-Direct comparison -- if the current fingerprint differs from the stored `sig:` value, the anchor has drifted. No git history is needed.
+kedge compares the current fingerprint against the stored `sig:` value. If they differ, the anchor has drifted. No git history is needed.
 
 **Legacy SHA-based (hex commit hash):**
 
@@ -69,8 +69,8 @@ For legacy SHA provenance, the drift report includes a git diff and diff summary
 
 During detection, kedge validates:
 
-- **Provenance values** -- must be hex-only (with `sig:` prefix) or a valid git SHA (7+ hex chars). Rejects anything that could be a git flag or arbitrary expression.
-- **Anchor paths** -- must resolve within the code repository root. Paths with `..` that escape the repo are rejected.
+- **Provenance values** must be hex-only (with `sig:` prefix) or a valid git SHA (7+ hex chars). kedge rejects anything that could be a git flag or arbitrary expression.
+- **Anchor paths** must resolve within the code repository root. kedge rejects paths with `..` that escape the repo.
 
 ## What triggers drift
 
@@ -89,5 +89,5 @@ Detection is fast because:
 
 - Tree-sitter parsing is native (compiled C grammars called from Rust)
 - `sig:` provenance requires no git history traversal
-- Each anchor is independent -- no cross-file analysis
+- Each anchor is independent, with no cross-file analysis
 - The operation is fully deterministic with no network calls (git operations are local)

@@ -129,4 +129,4 @@ Store API keys as [repository secrets](https://docs.github.com/en/actions/securi
 | `KEDGE_CODE_REPO_URL` | Override code repo URL (set to `${{ github.server_url }}/${{ github.repository }}`) |
 | `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from config |
 
-kedge auto-detects the `GITHUB_ACTIONS` environment variable and defaults `kedge install` to `--workspace` mode.
+kedge detects the `GITHUB_ACTIONS` environment variable and defaults `kedge install` to `--workspace` mode.

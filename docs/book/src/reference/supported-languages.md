@@ -23,10 +23,10 @@ kedge uses [tree-sitter](https://tree-sitter.github.io/tree-sitter/) for AST-bas
 
 ### Properties
 
-- **Whitespace immune** -- reformatting, indentation changes, and blank line additions don't change the fingerprint
-- **Comment immune** -- adding, removing, or editing comments doesn't change the fingerprint
-- **Rebase/squash safe** -- the fingerprint is computed from code structure, not git history
-- **Symbol-scoped** -- when tracking a specific method, changes to other methods in the same file don't trigger drift
+- **Whitespace immune**: reformatting, indentation changes, and blank line additions don't change the fingerprint
+- **Comment immune**: adding, removing, or editing comments doesn't change the fingerprint
+- **Rebase/squash safe**: the fingerprint is computed from code structure, not git history
+- **Symbol-scoped**: when tracking a specific method, changes to other methods in the same file don't trigger drift
 
 ## Symbol resolution
 
@@ -59,7 +59,7 @@ Files with extensions not matching any supported language (or when AST parsing f
 1. Hash the raw file content with SHA-256
 2. Truncate to 16 hex characters: `sig:a1b2c3d4e5f67890`
 
-The fallback hashes **raw content**, so whitespace and comment changes will register as drift. This is intentional -- without AST understanding, kedge can't distinguish structural changes from cosmetic ones.
+The fallback hashes **raw content**, so whitespace and comment changes register as drift. Without AST understanding, kedge cannot distinguish structural changes from cosmetic ones.
 
 ## Adding language support
 

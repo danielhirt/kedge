@@ -65,7 +65,7 @@ fn tree_sitter_language(&self) -> tree_sitter::Language {
 
 ## Step 5: Add comment node kinds
 
-Check the `is_comment()` function. The current implementation handles the most common node kinds:
+Check the `is_comment()` function. The current implementation handles the most common comment node kinds:
 
 ```rust
 fn is_comment(kind: &str, _lang: Language) -> bool {

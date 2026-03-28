@@ -16,12 +16,12 @@ In your code repository root:
 kedge init
 ```
 
-This creates a `kedge.toml` with sensible defaults. Open it and configure:
+kedge creates a `kedge.toml` with sensible defaults. Open it and configure:
 
-- **`[detection].languages`** -- the languages in your codebase (e.g., `["java", "typescript", "python"]`)
-- **`[triage]`** -- your AI provider (`anthropic`, `openai`, or `command`)
-- **`[remediation].agent_command`** -- the command that updates docs (e.g., a Kiro or Claude Code agent)
-- **`[[repos.docs]]`** -- the git URL and path of your documentation repository
+- **`[detection].languages`**: the languages in your codebase (e.g., `["java", "typescript", "python"]`)
+- **`[triage]`**: your AI provider (`anthropic`, `openai`, or `command`)
+- **`[remediation].agent_command`**: the command that updates docs (e.g., a Kiro or Claude Code agent)
+- **`[[repos.docs]]`**: the git URL and path of your documentation repository
 
 ```toml
 [detection]
@@ -57,7 +57,7 @@ Once your steering files have `kedge:` frontmatter with anchors pointing to code
 kedge link
 ```
 
-This computes an AST fingerprint for each anchored code location and writes it into the steering file's `provenance` field. This is the baseline that future drift detection compares against.
+kedge computes an AST fingerprint for each anchored code location and writes it into the steering file's `provenance` field. Future drift detection compares against this baseline.
 
 ## 3. Detect drift
 
@@ -65,7 +65,7 @@ This computes an AST fingerprint for each anchored code location and writes it i
 kedge check
 ```
 
-Outputs a JSON drift report to stdout. Exit code `0` means all docs are up to date. Exit code `1` means drift was found -- at least one anchor's code has changed since provenance was last stamped.
+kedge outputs a JSON drift report to stdout. Exit code `0` means all docs are up to date. Exit code `1` means drift was found. At least one anchor's code has changed since provenance was last stamped.
 
 Save the report to a file:
 
@@ -79,13 +79,13 @@ kedge check --report drift.json
 kedge update
 ```
 
-This runs the complete three-layer pipeline:
+kedge runs the complete three-layer pipeline:
 
-1. **Detection** -- compares AST fingerprints at provenance vs HEAD
-2. **Triage** -- classifies each drifted anchor as `no_update`, `minor`, or `major` via AI
-3. **Remediation** -- invokes your agent to update docs and open merge requests; advances provenance for `no_update` anchors automatically
+1. **Detection**: compares AST fingerprints at provenance vs HEAD
+2. **Triage**: classifies each drifted anchor as `no_update`, `minor`, or `major` via AI
+3. **Remediation**: invokes your agent to update docs and open merge requests, and advances provenance for `no_update` anchors
 
-The output is a `RemediationSummary` JSON showing what was remediated, what had provenance advanced, and any errors.
+kedge outputs a `RemediationSummary` JSON showing what was remediated, what had provenance advanced, and any errors.
 
 ## 5. Check status
 
@@ -93,10 +93,10 @@ The output is a `RemediationSummary` JSON showing what was remediated, what had 
 kedge status
 ```
 
-Shows all steering files with their anchors, groups, and current provenance values.
+kedge shows all steering files with their anchors, groups, and current provenance values.
 
 ## Next steps
 
-- [Your First Steering File](first-steering-file.md) -- create a steering file from scratch
-- [Configuration](../reference/configuration.md) -- full `kedge.toml` reference
-- [GitLab CI](../guides/ci-gitlab.md) or [GitHub Actions](../guides/ci-github-actions.md) -- set up kedge in CI
+- [Your First Steering File](first-steering-file.md): create a steering file from scratch
+- [Configuration](../reference/configuration.md): full `kedge.toml` reference
+- [GitLab CI](../guides/ci-gitlab.md) or [GitHub Actions](../guides/ci-github-actions.md): set up kedge in CI

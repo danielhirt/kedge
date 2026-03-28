@@ -1,6 +1,6 @@
 # GitLab CI Integration
 
-kedge fits into GitLab CI in two ways: as an **MR gate** that blocks merges when docs drift, and as a **scheduled pipeline** that automatically remediates drift.
+kedge fits into GitLab CI in two ways: as an **MR gate** that blocks merges when docs drift, and as a **scheduled pipeline** that remediates drift.
 
 ## MR gate: block merges on drift
 
@@ -29,8 +29,8 @@ kedge-check:
 
 When the check fails, the developer has two options:
 
-- **Update the docs** -- edit the steering file content and run `kedge link` to stamp fresh provenance
-- **Acknowledge no doc change is needed** -- run `kedge sync` to advance provenance without changing doc content
+- **Update the docs.** Edit the steering file content and run `kedge link` to stamp fresh provenance.
+- **Acknowledge no doc change is needed.** Run `kedge sync` to advance provenance without changing doc content.
 
 Either way, the provenance is updated and the next pipeline run will pass.
 
@@ -55,14 +55,14 @@ kedge-update:
 
 ### What `kedge update` does
 
-1. **Detection** -- scans all steering files and identifies drifted anchors
-2. **Triage** -- sends each drifted doc to the AI provider for severity classification
-3. **Remediation** -- invokes the agent command for `minor` and `major` docs; auto-advances provenance for `no_update` docs
+1. **Detection** scans all steering files and identifies drifted anchors.
+2. **Triage** sends each drifted doc to the AI provider for severity classification.
+3. **Remediation** invokes the agent command for `minor` and `major` docs and advances provenance for `no_update` docs.
 4. Outputs a `RemediationSummary` JSON with MR URLs, synced provenance, and any errors
 
 ### Installing steering files in CI
 
-`kedge install --workspace` copies doc files from the docs repo into the workspace agent directories (e.g., `.kiro/steering/` for Kiro, `docs/` for Claude Code). This gives the agent access to the documentation context when it runs.
+`kedge install --workspace` copies doc files from the docs repo into the workspace agent directories (e.g., `.kiro/steering/` for Kiro, `docs/` for Claude Code). The agent then has access to the documentation context when it runs.
 
 Use `--group` to scope to a specific team:
 
@@ -78,7 +78,7 @@ kedge install --workspace --check
 
 ## CI environment detection
 
-kedge auto-detects CI environments by checking for `CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` environment variables. In CI, `kedge install` defaults to `--workspace` mode (copy) unless `--link` is explicitly passed.
+kedge detects CI environments by checking for `CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` environment variables. In CI, `kedge install` defaults to `--workspace` mode (copy) unless you pass `--link`.
 
 ## Variables reference
 

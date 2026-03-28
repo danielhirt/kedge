@@ -13,7 +13,7 @@ The code change is purely cosmetic and doesn't affect the documentation's accura
 - Internal variable renaming that doesn't affect the public API
 - Refactoring that preserves behavior
 
-**Remediation:** No agent invocation. kedge automatically advances the provenance to the current fingerprint.
+**Remediation:** No agent invocation. kedge advances the provenance to the current fingerprint.
 
 ### `minor`
 
@@ -38,7 +38,7 @@ The code change is significant and the documentation needs a substantial rewrite
 - The semantics of an operation changed
 - A breaking API change
 
-**Remediation:** The agent is invoked to update the docs. Typically requires human review before merging.
+**Remediation:** The agent is invoked to update the docs. Requires human review before merging in most cases.
 
 ## How classification works
 
@@ -66,7 +66,7 @@ Each doc gets an overall severity equal to the **maximum** of its anchor severit
 
 ## Cost control
 
-Triage only runs on **drifted** docs. Clean docs (where no anchors have drifted) incur zero AI cost. This is by design -- detection is deterministic and free, and AI is only invoked when there's actual work to classify.
+Triage only runs on **drifted** docs. Clean docs (where no anchors have drifted) incur zero AI cost. Detection is deterministic and free, and kedge invokes AI only when there is drift to classify.
 
 ## How severity drives remediation
 
@@ -85,12 +85,12 @@ The `auto_merge_severities` config controls which severity levels set `auto_merg
 auto_merge_severities = ["no_update", "minor"]
 ```
 
-The agent decides what to do with the `auto_merge` flag -- kedge just passes it through. In batch mode, `auto_merge` is `true` only if every target qualifies individually.
+The agent decides what to do with the `auto_merge` flag. kedge passes it through without acting on it. In batch mode, `auto_merge` is `true` only if every target qualifies individually.
 
 ## Triage providers
 
 kedge supports three triage backends. See [Configuration](../reference/configuration.md) for setup details.
 
-- **`anthropic`** -- direct Anthropic API (recommended: `claude-haiku-4-5-20251001` for cost efficiency)
-- **`openai`** -- any OpenAI-compatible endpoint (Azure OpenAI, vLLM, local models)
-- **`command`** -- pipe the prompt to an external command via stdin
+- **`anthropic`**: direct Anthropic API (recommended: `claude-haiku-4-5-20251001` for cost efficiency)
+- **`openai`**: any OpenAI-compatible endpoint (Azure OpenAI, vLLM, local models)
+- **`command`**: pipe the prompt to an external command via stdin

@@ -23,9 +23,9 @@ docs-repo/
       skill.md
 ```
 
-- **`payments/`**, **`auth/`** -- group-scoped directories, one per team
-- **`shared/`** -- files installed for every group
-- **`_kedge/`** -- metadata files (agent instructions, skills) installed for all groups
+- **`payments/`**, **`auth/`**: group-scoped directories, one per team
+- **`shared/`**: files installed for every group
+- **`_kedge/`**: metadata files (agent instructions, skills) installed for all groups
 
 ## Steering file groups
 
@@ -43,8 +43,8 @@ kedge:
 
 The `group` field is used by:
 
-- **`kedge install --group payments`** -- only installs steering files from `payments/` and `shared/`
-- **`kedge status`** -- displays the group for each doc
+- **`kedge install --group payments`** installs steering files from `payments/` and `shared/` only.
+- **`kedge status`** displays the group for each doc.
 
 ## Installing per team
 
@@ -54,7 +54,7 @@ On a developer machine, install steering files for your team:
 kedge install --link --group payments
 ```
 
-This symlinks files from `payments/` and `shared/` into your local agent directory (e.g., `~/.kiro/steering/` for Kiro, `~/.claude/docs/` for Claude Code).
+kedge symlinks files from `payments/` and `shared/` into your local agent directory (e.g., `~/.kiro/steering/` for Kiro, `~/.claude/docs/` for Claude Code).
 
 In CI, use `--workspace` to copy instead:
 
@@ -74,7 +74,7 @@ Without `--agent`, kedge installs to all configured agent platforms.
 
 ## Cross-cutting documentation
 
-Files in the `shared/` directory are installed regardless of which `--group` is specified. Use this for:
+kedge installs files in the `shared/` directory regardless of which `--group` you specify. Use this for:
 
 - API conventions that apply across all teams
 - Shared error handling patterns
@@ -82,12 +82,12 @@ Files in the `shared/` directory are installed regardless of which `--group` is 
 
 ## Agent instructions
 
-Place an `AGENTS.md` file in `_kedge/` to provide agent-specific instructions. When installed, this file is renamed to match the platform's `agents_file` config:
+Place an `AGENTS.md` file in `_kedge/` to provide agent-specific instructions. During installation, kedge renames the file to match the platform's `agents_file` config:
 
 - For Kiro: installed as `AGENTS.md`
 - For Claude Code: installed as `CLAUDE.md`
 
-Similarly, a `skill.md` in `_kedge/` is installed into the platform's `skill_dir`.
+kedge installs a `skill.md` in `_kedge/` into the platform's `skill_dir`.
 
 ## Multiple docs repositories
 
@@ -105,7 +105,7 @@ path = "."
 ref = "main"
 ```
 
-Each repo is cloned and processed independently. Steering files from all repos are scanned during `kedge check` and `kedge update`.
+kedge clones and processes each repo on its own. Both `kedge check` and `kedge update` scan steering files from all repos.
 
 ## Example: CI with multiple groups
 
@@ -138,4 +138,4 @@ Or install all groups at once by omitting `--group`:
 kedge install --workspace
 ```
 
-This installs files from every group directory plus `shared/`.
+kedge then installs files from every group directory plus `shared/`.

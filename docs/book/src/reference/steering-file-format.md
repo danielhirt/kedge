@@ -1,6 +1,6 @@
 # Steering File Format
 
-Any markdown document with a `kedge:` block in its YAML frontmatter is a tracked doc. kedge borrows the term "steering file" from Amazon's Kiro agent, but the tool is agent-agnostic -- it works with standalone docs, `AGENTS.md`, `CLAUDE.md`, or any markdown file. These files live in the docs repository and anchor documentation to specific code locations.
+Any markdown document with a `kedge:` block in its YAML frontmatter is a tracked doc. kedge borrows the term "steering file" from Amazon's Kiro agent, but the tool is agent-agnostic. It works with standalone docs, `AGENTS.md`, `CLAUDE.md`, or any markdown file. These files live in the docs repository and anchor documentation to specific code locations.
 
 ## Structure
 
@@ -56,7 +56,7 @@ Must match the code repo URL that kedge resolves (from `KEDGE_CODE_REPO_URL` or 
 
 Relative to the repo root. Examples: `src/auth/AuthService.java`, `pkg/handler.go`.
 
-Validated against path traversal -- paths containing `..` that escape the repo root are rejected.
+kedge validates against path traversal. Paths containing `..` that escape the repo root are rejected.
 
 #### `anchors[].symbol`
 
@@ -65,7 +65,7 @@ Validated against path traversal -- paths containing `..` that escape the repo r
 | Type | string (optional) |
 | Purpose | Specific declaration to track within the file |
 
-When set, kedge fingerprints only that symbol's AST subtree instead of the entire file. This means changes to other parts of the file don't trigger drift.
+When set, kedge fingerprints only that symbol's AST subtree instead of the entire file. Changes to other parts of the file don't trigger drift.
 
 Symbol syntax by language:
 
@@ -87,14 +87,14 @@ Symbol syntax by language:
 
 Two formats:
 
-- **Content-addressed** (`sig:` prefix): `"sig:a1b2c3d4e5f67890"` -- a 16-hex-char AST fingerprint. This is the default and recommended format.
-- **Legacy SHA**: `"abc123def456..."` -- a git commit hash (7+ hex characters). Requires git history traversal during detection.
+- **Content-addressed** (`sig:` prefix): `"sig:a1b2c3d4e5f67890"`, a 16-hex-char AST fingerprint. The default and recommended format.
+- **Legacy SHA**: `"abc123def456..."`, a git commit hash (7+ hex characters). Requires git history traversal during detection.
 
 Stamped by `kedge link` and advanced by `kedge sync`. Leave empty (`""`) when creating a new steering file, then run `kedge link` to populate it.
 
 ## Frontmatter parsing
 
-kedge parses the YAML between the `---` delimiters. Only the `kedge:` key is read -- other frontmatter keys (e.g., `title`, `tags`) are preserved but ignored by kedge.
+kedge parses the YAML between the `---` delimiters. Only the `kedge:` key is read. Other frontmatter keys (e.g., `title`, `tags`) are preserved but kedge ignores them.
 
 ```yaml
 ---
@@ -123,4 +123,4 @@ kedge discovers steering files by:
 3. Parsing each file for `kedge:` frontmatter with non-empty `anchors`
 4. Filtering by repo URL (only anchors matching the current code repo are processed)
 
-Files without `kedge:` frontmatter or with empty anchors are silently skipped.
+Files without `kedge:` frontmatter or with empty anchors are skipped.

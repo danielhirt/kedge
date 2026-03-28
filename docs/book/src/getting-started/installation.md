@@ -8,7 +8,7 @@ The fastest way to install kedge:
 curl -fsSL https://raw.githubusercontent.com/danielhirt/kedge/main/install.sh | sh
 ```
 
-This detects your platform and downloads the latest release binary to `/usr/local/bin`.
+The installer detects your platform and downloads the latest release binary to `/usr/local/bin`.
 
 Override the install directory:
 
@@ -74,7 +74,7 @@ For air-gapped or pre-baked CI runners, copy the binary into your runner image:
 COPY kedge /usr/local/bin/kedge
 ```
 
-On developer machines, `kedge install --link` symlinks steering files from the docs repo to your local agent directories. In CI, `kedge install --workspace` copies them into the workspace instead.
+On developer machines, `kedge install --link` symlinks steering files from the docs repo to your local agent directories. In CI, `kedge install --workspace` copies them into the workspace.
 
 ## Verify installation
 

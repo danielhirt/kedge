@@ -1,5 +1,9 @@
 # kedge
 
+[![CI](https://github.com/danielhirt/kedge/actions/workflows/ci.yml/badge.svg)](https://github.com/danielhirt/kedge/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/danielhirt/kedge)](https://github.com/danielhirt/kedge/releases/latest)
+[![License](https://img.shields.io/github/license/danielhirt/kedge)](LICENSE)
+
 CLI that detects when code changes make docs stale, classifies drift severity via AI, and invokes agents to update docs and open merge requests.
 
 ## How It Works
@@ -10,7 +14,7 @@ Three-layer pipeline:
 2. **Triage.** Classify each drifted anchor as `no_update`, `minor`, or `major` via a lightweight LLM call.
 3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes.
 
-Any markdown file with `kedge:` frontmatter becomes a tracked doc — standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
+Any markdown file with `kedge:` frontmatter becomes a tracked doc: standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
 
 ## Installation
 
@@ -20,7 +24,7 @@ Any markdown file with `kedge:` frontmatter becomes a tracked doc — standalone
 curl -fsSL https://raw.githubusercontent.com/danielhirt/kedge/main/install.sh | sh
 ```
 
-Detects your platform and downloads the latest release binary to `/usr/local/bin`. Override the install directory with `KEDGE_INSTALL_DIR`:
+The script detects your platform and downloads the latest release binary to `/usr/local/bin`. Override the install directory with `KEDGE_INSTALL_DIR`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/danielhirt/kedge/main/install.sh | KEDGE_INSTALL_DIR=~/.local/bin sh
@@ -46,7 +50,7 @@ docker build -t kedge .
 
 ### Pre-built binaries
 
-Download from [GitHub Releases](https://github.com/danielhirt/kedge/releases). Binaries are available for Linux, macOS, and Windows (x86_64 and aarch64). Each archive includes a `.sha256` checksum file.
+Download from [GitHub Releases](https://github.com/danielhirt/kedge/releases). Binaries cover Linux, macOS, and Windows (x86_64 and aarch64). Each archive includes a `.sha256` checksum file.
 
 ### From source
 
@@ -154,7 +158,7 @@ skill_dir = ""
 
 ### Timeout Budget
 
-Configurable per `kedge.toml`. Defaults fit within a 1-hour CI pipeline:
+Configure timeouts in `kedge.toml`. Defaults fit within a 1-hour CI pipeline:
 
 | Setting | Default | Worst case (5 docs) |
 |---------|---------|---------------------|
@@ -277,15 +281,15 @@ This document describes how token validation works...
 
 ### Provenance
 
-Content-addressed provenance (`sig:` prefix) is the default. The fingerprint captures AST structure at the anchored location:
+Content-addressed provenance (`sig:` prefix) is the default. The fingerprint captures the AST structure at the anchored location:
 
 - **Whitespace/comment immune.** Formatting changes don't trigger drift.
-- **Rebase/amend/squash safe.** Computed from code structure, not git history.
+- **Rebase/amend/squash safe.** kedge computes fingerprints from code structure, not git history.
 - **Symbol-scoped.** Tracks specific declarations (e.g., `AuthService#validateToken`), not entire files.
 
 `kedge link` stamps initial provenance. `kedge sync` advances provenance without changing doc content.
 
-Legacy SHA-based provenance (plain git commit hashes) requires git history traversal but remains supported.
+Legacy SHA-based provenance (plain git commit hashes) requires git history traversal but kedge still supports it.
 
 ### Agent Response Contract
 
@@ -305,7 +309,7 @@ For batch mode (`batch = true`):
 
 **Plain text fallback:**
 
-Kedge scans stdout for URLs starting with `https://` or `http://` and uses the first match as the MR link.
+kedge scans stdout for URLs starting with `https://` or `http://` and uses the first match as the MR link.
 
 ## Commands
 
@@ -332,7 +336,7 @@ Kedge scans stdout for URLs starting with `https://` or `http://` and uses the f
 | `--workspace` | Copy to workspace steering directory (CI) |
 | `--check` | Skip if already up to date (compare local vs remote HEAD) |
 
-CI environments (`CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` set) default to `--workspace` mode unless `--link` is passed.
+CI environments (`CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` set) default to `--workspace` mode unless you pass `--link`.
 
 ## Supported Languages
 
@@ -347,15 +351,15 @@ AST fingerprinting (whitespace/comment immune, symbol-scoped):
 | Rust | `.rs` | `StructName#method_name` or `function_name` |
 | XML | `.xml` | (file-level only) |
 
-Other file types fall back to SHA-256 content hashing. The fallback hashes raw content, so whitespace and comment changes register as drift.
+Other file types fall back to SHA-256 content hashing. The fallback hashes raw content, so whitespace and comment changes do register as drift.
 
 ## Security
 
 - Git CLI calls use `--` end-of-options separator
-- Anchor paths validated against path traversal
-- Provenance values validated against git ref injection
-- Repo URLs validated against injection. Credentials stripped from error output.
-- Cache directories use `0o700` permissions
+- kedge validates anchor paths against path traversal
+- kedge validates provenance values against git ref injection
+- kedge validates repo URLs against injection and strips credentials from error output.
+- kedge sets cache directories to `0o700` permissions
 - `kedge install` skips symlinks when traversing source directories
 - HTTP via rustls (no OpenSSL dependency)
 

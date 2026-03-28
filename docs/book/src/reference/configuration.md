@@ -74,11 +74,11 @@ Controls AI-based severity classification.
 
 ### Provider details
 
-**`anthropic`** -- Direct Anthropic API. Default endpoint: `https://api.anthropic.com/v1/messages`. Set `api_url` to route through an enterprise proxy. Default API key env var: `ANTHROPIC_API_KEY`.
+**`anthropic`**: Direct Anthropic API. Default endpoint: `https://api.anthropic.com/v1/messages`. Set `api_url` to route through an enterprise proxy. Default API key env var: `ANTHROPIC_API_KEY`.
 
-**`openai`** -- Any OpenAI-compatible endpoint (Azure OpenAI, vLLM, local models). Default endpoint: `https://api.openai.com/v1/chat/completions`. If `api_url` ends with `/v1`, kedge appends `/chat/completions` automatically. `model` is required. Default API key env var: `OPENAI_API_KEY`.
+**`openai`**: Any OpenAI-compatible endpoint (Azure OpenAI, vLLM, local models). Default endpoint: `https://api.openai.com/v1/chat/completions`. If `api_url` ends with `/v1`, kedge appends `/chat/completions`. `model` is required. Default API key env var: `OPENAI_API_KEY`.
 
-**`command`** -- Pipes the triage prompt to an external command via stdin. Set `triage_command` to the shell command. Use `triage_env` for extra environment variables. The command must print the classification JSON to stdout.
+**`command`**: Pipes the triage prompt to an external command via stdin. Set `triage_command` to the shell command. Use `triage_env` for extra environment variables. The command must print the classification JSON to stdout.
 
 ## `[remediation]`
 
@@ -134,7 +134,7 @@ ref = "main"
 
 ## `[[agents]]`
 
-Agent platform configurations used by `kedge install` to distribute doc files. The paths are platform-specific -- Kiro uses `.kiro/steering/`, but other agents (Claude Code, custom tools) use whatever directory they read docs from.
+Agent platform configurations used by `kedge install` to distribute doc files. The paths are platform-specific. Kiro uses `.kiro/steering/`, while other agents (Claude Code, custom tools) use whatever directory they read docs from.
 
 | Field | Type | Description |
 |-------|------|-------------|

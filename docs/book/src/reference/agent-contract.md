@@ -13,7 +13,7 @@ kedge runs the agent command as a subprocess:
 5. Waits up to `agent_timeout` seconds for the process to exit
 6. If the timeout is exceeded, sends SIGKILL
 
-The agent's **stderr is inherited** -- anything written to stderr appears in kedge's output. Use this for progress logging.
+The agent's **stderr is inherited**, so anything written to stderr appears in kedge's output. Use this for progress logging.
 
 Extra environment variables from `agent_env` are passed to the process.
 
@@ -139,12 +139,12 @@ If the agent's stdout is not valid JSON, kedge scans the output for URLs:
 3. Strips trailing punctuation (`,`, `.`, `;`, `)`, `]`, `"`, `'`)
 4. Uses the first URL found as the MR link
 
-This makes it easy to get started -- an agent can simply print `Created MR: https://github.com/org/docs/pull/42` and kedge will extract the URL.
+An agent can print `Created MR: https://github.com/org/docs/pull/42` and kedge will extract the URL.
 
 ## Exit code
 
-The agent process must exit with code `0` on success. A non-zero exit code is treated as an error, and kedge logs the failure in the `RemediationSummary.errors` array.
+The agent process must exit with code `0` on success. kedge treats a non-zero exit code as an error and logs the failure in the `RemediationSummary.errors` array.
 
 ## `no_update` anchors
 
-Anchors classified as `no_update` are **not** sent to the agent. Instead, kedge automatically advances their provenance by recomputing the fingerprint and writing it to the steering file. This avoids unnecessary agent invocations for cosmetic code changes.
+kedge does **not** send anchors classified as `no_update` to the agent. Instead, kedge advances their provenance by recomputing the fingerprint and writing it to the steering file. This avoids unnecessary agent invocations for cosmetic code changes.

@@ -47,8 +47,8 @@ kedge check --report drift.json   # report to file
 ```
 
 **Exit codes:**
-- `0` -- no drift detected, all docs are up to date
-- `1` -- drift detected, at least one anchor has changed
+- `0`: no drift detected, all docs are up to date
+- `1`: drift detected, at least one anchor has changed
 
 **Output:** A `DriftReport` JSON object:
 
@@ -135,9 +135,9 @@ kedge update --report drift.json   # also save the drift report
 
 **Pipeline steps:**
 
-1. **Detection** -- scans steering files and computes drift
-2. **Triage** -- classifies each drifted anchor via the AI provider
-3. **Remediation** -- for docs with `minor` or `major` anchors, invokes the agent command; for docs where all anchors are `no_update`, advances provenance automatically
+1. **Detection**: scans steering files and computes drift
+2. **Triage**: classifies each drifted anchor via the AI provider
+3. **Remediation**: for docs with `minor` or `major` anchors, invokes the agent command; for docs where all anchors are `no_update`, advances provenance
 
 **Output:** A `RemediationSummary` JSON object:
 
@@ -194,7 +194,7 @@ kedge sync                    # all .md files with kedge frontmatter
 kedge sync docs/auth.md       # specific file
 ```
 
-Behaves like `kedge link` -- recomputes fingerprints and writes them to the steering files. Use this when code has changed but the documentation is still accurate (e.g., internal refactors that don't affect the public API).
+Behaves like `kedge link`: recomputes fingerprints and writes them to the steering files. Use this when code has changed but the documentation is still accurate (e.g., internal refactors that don't affect the public API).
 
 **Output:**
 
@@ -230,10 +230,10 @@ kedge install --workspace --check             # skip if already up to date
 
 From the docs repo source directory:
 
-- `<group>/` -- markdown files matching the specified group
-- `shared/` -- markdown files shared across all groups
-- `_kedge/AGENTS.md` -- installed as the platform's `agents_file` (e.g., renamed to `CLAUDE.md` for the claude platform)
-- `_kedge/skill.md` -- installed into the platform's `skill_dir`
+- `<group>/`: markdown files matching the specified group
+- `shared/`: markdown files shared across all groups
+- `_kedge/AGENTS.md`: installed as the platform's `agents_file` (e.g., renamed to `CLAUDE.md` for the claude platform)
+- `_kedge/skill.md`: installed into the platform's `skill_dir`
 
 Symlinks in the source directory are skipped for security.
 

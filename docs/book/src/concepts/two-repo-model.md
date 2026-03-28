@@ -83,7 +83,7 @@ kedge install --link --group payments
 kedge install --workspace --group payments
 ```
 
-This gives agents (Kiro, Claude Code, etc.) access to the steering context without requiring them to clone the docs repo themselves.
+Agents (Kiro, Claude Code, etc.) gain access to the steering context without needing to clone the docs repo themselves.
 
 ## Monorepo alternative
 
@@ -100,7 +100,7 @@ path = "docs/steering/"
 ref = "main"
 ```
 
-Or simply:
+Or:
 
 ```bash
 KEDGE_DOCS_PATH=./docs/steering kedge check
