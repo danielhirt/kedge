@@ -9,6 +9,7 @@ pub mod frontmatter;
 pub mod models;
 pub mod triage;
 pub mod remediation;
+pub mod install;
 // - models       : shared data types (reports, anchors, payloads)
 // - frontmatter  : YAML frontmatter extraction from markdown
 // - detection    : AST fingerprinting pipeline
