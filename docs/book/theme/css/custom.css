@@ -1,101 +1,303 @@
+:root {
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --font-size: 17px;
+    --line-height: 1.65;
+    --content-max-width: 820px;
+}
+
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+#content {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#content main {
+    padding-bottom: 2rem;
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--table-border-color);
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--sidebar-active);
+    opacity: 0.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family);
+    font-weight: 700;
+    line-height: 1.25;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    letter-spacing: -0.025em;
+    color: var(--fg);
+}
+
+h1 { font-size: 2.5rem; margin-top: 1rem; }
+h2 { font-size: 1.85rem; border-bottom: 1px solid var(--table-border-color); padding-bottom: 0.5rem; }
+h3 { font-size: 1.45rem; }
+h4 { font-size: 1.2rem; }
+
+p, li {
+    margin-bottom: 1.25rem;
+    color: var(--fg);
+    opacity: 0.92;
+}
+
+strong {
+    font-weight: 600;
+    color: var(--fg);
+}
+
+code {
+    font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.88em;
+    background: var(--theme-hover);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    color: var(--fg);
+}
+
+pre {
+    padding: 1.25rem !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--table-border-color) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    margin: 2rem 0 !important;
+    background-color: var(--theme-hover) !important;
+}
+
+pre code {
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 0.92em;
+    line-height: 1.55;
+}
+
+.sidebar {
+    font-size: 0.92rem;
+    border-right: 1px solid var(--table-border-color);
+    background-color: var(--sidebar-bg);
+}
+
+.sidebar .chapter li a {
+    padding: 8px 20px;
+    transition: all 0.15s ease;
+    border-radius: 0 20px 20px 0;
+    margin-right: 10px;
+}
+
+.sidebar .chapter li a:hover {
+    background: var(--theme-hover);
+    color: var(--sidebar-active) !important;
+}
+
+.sidebar .chapter li.active a {
+    color: var(--sidebar-active) !important;
+    font-weight: 600;
+    background: var(--theme-hover);
+}
+
+.sidebar .chapter li.part-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+    padding-left: 20px;
+}
+
+.nav-chapters {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    border-top: 1px solid var(--table-border-color);
+    padding: 3rem 0;
+}
+
+.nav-chapters .nav-wrapper {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.nav-chapters a {
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--table-border-color);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    background: var(--theme-bg);
+}
+
+.nav-chapters a:hover {
+    border-color: var(--sidebar-active);
+    background: var(--theme-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.nav-chapters a .nav-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    margin-bottom: 0.5rem;
+}
+
+.nav-chapters a .nav-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--sidebar-active);
+}
+
 /* Landing page styles */
 
 .landing .hero {
     text-align: center;
-    padding: 3rem 1rem 2rem;
-    max-width: 720px;
+    padding: 6rem 1rem 5rem;
+    max-width: 840px;
     margin: 0 auto;
 }
 
 .landing .hero h1 {
-    font-size: 3.5rem;
+    font-size: 4.5rem;
     font-weight: 800;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.05em;
+    margin-bottom: 1.5rem;
+    line-height: 1.05;
+    background: linear-gradient(to bottom right, var(--fg), var(--sidebar-active));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .landing .hero .tagline {
-    font-size: 1.4rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
     color: var(--sidebar-active);
 }
 
 .landing .hero .subtitle {
-    font-size: 1.05rem;
-    opacity: 0.75;
-    margin-bottom: 2rem;
-    line-height: 1.5;
+    font-size: 1.25rem;
+    opacity: 0.8;
+    margin-bottom: 3.5rem;
+    line-height: 1.6;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .landing .install-block {
-    max-width: 380px;
-    margin: 0 auto 1.5rem;
+    max-width: 480px;
+    margin: 0 auto 2.5rem;
 }
 
 .landing .install-block pre {
-    border-radius: 6px;
-    font-size: 1rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    background: var(--theme-hover) !important;
+    border: 2px solid var(--table-border-color) !important;
 }
 
 .landing .hero-links {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
     justify-content: center;
     flex-wrap: wrap;
-    margin-bottom: 1rem;
+    margin-bottom: 3rem;
 }
 
 .landing .btn {
     display: inline-block;
-    padding: 0.6rem 1.5rem;
-    border-radius: 6px;
+    padding: 1rem 2.5rem;
+    border-radius: 12px;
     text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: opacity 0.15s;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.landing .btn:active {
+    transform: scale(0.96);
 }
 
 .landing .btn:hover {
-    opacity: 0.85;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .landing .btn-primary {
     background: var(--sidebar-active);
-    color: var(--sidebar-bg);
+    color: #fff !important;
 }
 
 .landing .btn-secondary {
     border: 2px solid var(--sidebar-active);
     color: var(--sidebar-active);
+    background: transparent;
 }
 
 /* Feature grid */
 
 .landing .features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.5rem;
-    max-width: 840px;
-    margin: 2.5rem auto;
-    padding: 0 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2.5rem;
+    max-width: 1100px;
+    margin: 5rem auto;
+    padding: 0 1.5rem;
 }
 
 .landing .feature {
-    padding: 1.25rem;
-    border-radius: 8px;
+    padding: 2.5rem;
+    border-radius: 16px;
     border: 1px solid var(--table-border-color);
+    background: var(--theme-hover);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing .feature:hover {
+    transform: translateY(-8px);
+    border-color: var(--sidebar-active);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .landing .feature h3 {
-    font-size: 1.1rem;
+    font-size: 1.4rem;
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    color: var(--sidebar-active);
 }
 
 .landing .feature p {
-    font-size: 0.9rem;
-    line-height: 1.55;
+    font-size: 1.05rem;
+    line-height: 1.65;
     margin: 0;
     opacity: 0.85;
 }
@@ -103,23 +305,30 @@
 /* Detail sections */
 
 .landing .details {
-    max-width: 720px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+    max-width: 840px;
+    margin: 6rem auto;
+    padding: 0 1.5rem;
 }
 
 .landing .detail-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: 4rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--table-border-color);
+}
+
+.landing .detail-section:last-child {
+    border-bottom: none;
 }
 
 .landing .detail-section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.35rem;
+    font-size: 1.35rem;
+    margin-bottom: 1rem;
+    color: var(--fg);
 }
 
 .landing .detail-section p {
-    font-size: 0.92rem;
-    line-height: 1.55;
+    font-size: 1.1rem;
+    line-height: 1.7;
     opacity: 0.85;
     margin: 0;
 }
