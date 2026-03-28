@@ -3,6 +3,7 @@
     --font-size: 19px;
     --line-height: 1.7;
     --content-max-width: 860px;
+    --sidebar-width: 360px;
 }
 
 body {
@@ -22,6 +23,27 @@ body {
 
 #content main {
     padding-bottom: 2rem;
+}
+
+/* Menu Bar Styles */
+.menu-bar {
+    height: 60px;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.menu-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+}
+
+.left-buttons button, .right-buttons button, .right-buttons a {
+    font-size: 1.3rem;
+    padding: 0 12px;
+    height: 60px;
 }
 
 /* Custom Scrollbar for Sidebar */
@@ -95,38 +117,64 @@ pre code {
 }
 
 .sidebar {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     border-right: 1px solid var(--table-border-color);
     background-color: var(--sidebar-bg);
 }
 
+.sidebar-scrollbox {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+.sidebar .chapter {
+    padding-top: 0.5rem;
+    padding-bottom: 2rem;
+}
+
+.sidebar .chapter li {
+    margin-bottom: 0.6rem;
+}
+
 .sidebar .chapter li a {
-    padding: 10px 24px;
-    transition: all 0.15s ease;
-    border-radius: 0 24px 24px 0;
-    margin-right: 12px;
+    font-size: 1.15rem !important; /* Explicit override for large, legible text */
+    padding: 16px 28px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0 32px 32px 0;
+    margin-right: 18px;
+    line-height: 1.5;
+    display: block;
+    position: relative;
+    border-left: 4px solid transparent;
+    color: var(--fg);
+    opacity: 0.85;
 }
 
 .sidebar .chapter li a:hover {
     background: var(--theme-hover);
     color: var(--sidebar-active) !important;
+    opacity: 1;
 }
 
 .sidebar .chapter li.active a {
     color: var(--sidebar-active) !important;
-    font-weight: 700;
+    font-weight: 800;
     background: var(--theme-hover);
+    border-left: 4px solid var(--sidebar-active);
+    padding-left: 24px; /* Account for the 4px border */
+    opacity: 1;
 }
 
 .sidebar .chapter li.part-title {
     font-weight: 800;
     text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
-    opacity: 0.6;
-    padding-left: 24px;
+    font-size: 1.1rem !important;
+    letter-spacing: 0.15em;
+    margin-top: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--fg);
+    opacity: 0.45;
+    padding-left: 32px;
 }
 
 .nav-chapters {
