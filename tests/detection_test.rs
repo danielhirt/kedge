@@ -60,3 +60,69 @@ fn gets_head_sha() {
     let head = steer::detection::git::head_sha(dir.path()).unwrap();
     assert_eq!(head, sha);
 }
+
+#[test]
+fn detection_pipeline_finds_drift_when_code_changed() {
+    // Setup: git repo with a Java file
+    let (dir, sha) = setup_git_repo(
+        "src/auth/AuthService.java",
+        "public class AuthService { public boolean validate(String t) { return true; } }",
+    );
+
+    // Create a steering doc that anchors to this file
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nsteer:\n  group: test\n  anchors:\n    - repo: \"file://{repo}\"\n      path: src/auth/AuthService.java\n      symbol: AuthService#validate\n      provenance: {sha}\n---\n\n# Auth docs\n",
+        repo = dir.path().display(),
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
+    std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
+
+    // Now modify the Java file (change the method signature)
+    std::fs::write(
+        dir.path().join("src/auth/AuthService.java"),
+        "public class AuthService { public boolean validate(String t, List<String> scopes) { return true; } }",
+    ).unwrap();
+    Command::new("git").args(["add", "."]).current_dir(dir.path()).output().unwrap();
+    Command::new("git").args(["commit", "-m", "add scopes param"]).current_dir(dir.path()).output().unwrap();
+
+    // Run detection
+    let report = steer::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("test"),
+        &format!("file://{}", dir.path().display()),
+        "test-repo",
+    ).unwrap();
+
+    assert_eq!(report.drifted.len(), 1);
+    assert_eq!(report.drifted[0].anchors.len(), 1);
+    assert_eq!(report.drifted[0].anchors[0].path, "src/auth/AuthService.java");
+}
+
+#[test]
+fn detection_pipeline_reports_clean_when_no_changes() {
+    let (dir, sha) = setup_git_repo(
+        "src/auth/AuthService.java",
+        "public class AuthService { public boolean validate(String t) { return true; } }",
+    );
+
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nsteer:\n  group: test\n  anchors:\n    - repo: \"file://{repo}\"\n      path: src/auth/AuthService.java\n      provenance: {sha}\n---\n\n# Auth docs\n",
+        repo = dir.path().display(),
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
+    std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
+
+    let report = steer::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("test"),
+        &format!("file://{}", dir.path().display()),
+        "test-repo",
+    ).unwrap();
+
+    assert!(report.drifted.is_empty());
+    assert_eq!(report.clean.len(), 1);
+}
