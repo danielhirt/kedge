@@ -1,0 +1,598 @@
+mod cli;
+
+use anyhow::Context;
+use clap::Parser;
+use cli::{Cli, Command};
+
+fn code_repo_url(cwd: &std::path::Path) -> String {
+    std::env::var("KEDGE_CODE_REPO_URL").unwrap_or_else(|_| format!("file://{}", cwd.display()))
+}
+
+fn repo_name(cwd: &std::path::Path) -> String {
+    cwd.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+fn resolve_md_files(
+    files: Vec<std::path::PathBuf>,
+    base: &std::path::Path,
+) -> Vec<std::path::PathBuf> {
+    if files.is_empty() {
+        let pattern = format!("{}/**/*.md", base.display());
+        glob::glob(&pattern)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .collect()
+    } else {
+        files
+    }
+}
+
+fn resolve_docs_path(config: &kedge::config::Config) -> anyhow::Result<std::path::PathBuf> {
+    if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+        return Ok(std::path::PathBuf::from(p));
+    }
+    let doc_repo = config
+        .repos
+        .docs
+        .first()
+        .context("no docs repo configured in kedge.toml")?;
+    let cached = kedge::install::repo_cache::get_or_clone(
+        &doc_repo.url,
+        &doc_repo.git_ref,
+        config.repos.git_timeout,
+    )
+    .with_context(|| {
+        format!(
+            "failed to clone docs repo {}",
+            kedge::safety::sanitize_url(&doc_repo.url)
+        )
+    })?;
+    if doc_repo.path.is_empty() {
+        Ok(cached)
+    } else {
+        let resolved = cached.join(&doc_repo.path);
+        kedge::safety::validate_path_within(&cached, &resolved)
+            .context("docs repo path escapes cache directory")?;
+        Ok(resolved)
+    }
+}
+
+fn stamp_anchors(
+    code_repo_path: &std::path::Path,
+    doc_file: &std::path::Path,
+    anchors: &[kedge::models::Anchor],
+) -> usize {
+    let canon_repo = code_repo_path
+        .canonicalize()
+        .unwrap_or_else(|_| code_repo_path.to_path_buf());
+    let mut updates: Vec<(&str, Option<&str>, String)> = Vec::new();
+
+    for anchor in anchors {
+        let code_file = code_repo_path.join(&anchor.path);
+        if kedge::safety::validate_path_within_canon(&canon_repo, &code_file).is_err() {
+            eprintln!(
+                "warning: skipping anchor with path outside repo: {}",
+                anchor.path
+            );
+            continue;
+        }
+        match std::fs::read_to_string(&code_file) {
+            Ok(content) => {
+                let sig = kedge::detection::fingerprint::compute_sig(
+                    &content,
+                    &anchor.path,
+                    anchor.symbol.as_deref(),
+                );
+                updates.push((&anchor.path, anchor.symbol.as_deref(), sig));
+            }
+            Err(e) => {
+                eprintln!("warning: cannot read {}: {}", anchor.path, e);
+            }
+        }
+    }
+
+    let stamped = updates.len();
+    if !updates.is_empty() {
+        let batch: Vec<(&str, Option<&str>, &str)> = updates
+            .iter()
+            .map(|(p, s, sig)| (*p, *s, sig.as_str()))
+            .collect();
+        if let Err(e) = kedge::frontmatter::update_provenance_batch(doc_file, &batch) {
+            eprintln!(
+                "warning: failed to update provenance in {}: {}",
+                doc_file.display(),
+                e
+            );
+            return 0;
+        }
+    }
+    stamped
+}
+
+fn collect_doc_contents(
+    docs_path: &std::path::Path,
+    report: &kedge::models::DriftReport,
+) -> std::collections::HashMap<String, String> {
+    let mut contents = std::collections::HashMap::new();
+    for drifted_doc in &report.drifted {
+        let doc_path = docs_path.join(&drifted_doc.doc);
+        if let Ok(content) = std::fs::read_to_string(&doc_path) {
+            contents.insert(drifted_doc.doc.clone(), content);
+        }
+    }
+    contents
+}
+
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Command::Init => {
+            if cli.config.exists() {
+                eprintln!("{} already exists — skipping.", cli.config.display());
+            } else {
+                let template = r#"[detection]
+languages = ["rust", "python", "typescript"]
+fallback = "content-hash"
+
+[triage]
+provider = "command"                   # "anthropic", "openai", or "command"
+triage_command = "your-triage-command"  # required when provider = "command"
+# model = "claude-haiku-4-5-20251001"  # required for anthropic/openai providers
+# api_url = ""                         # custom API endpoint (default: provider's public API)
+# api_key_env = ""                     # env var name for API key (default: ANTHROPIC_API_KEY or OPENAI_API_KEY)
+# triage_timeout = 120                 # seconds (default: 120)
+# triage_env = { }                     # extra env vars for command provider
+
+[remediation]
+agent_command = "your-agent-command"
+auto_merge_severities = ["no_update"]
+# batch = true        # single agent invocation for all drifted docs
+# agent_timeout = 300  # seconds, kills agent process if exceeded
+# agent_env = { }      # extra env vars passed to agent process
+
+[repos]
+# git_timeout = 300  # seconds for clone/fetch operations (default: 300)
+docs = [
+  { url = "https://github.com/your-org/docs.git", path = ".", ref = "main" },
+]
+
+[[agents]]
+name = "claude"
+global_steering = "~/.claude/steering"
+workspace_steering = ".claude/steering"
+agents_file = "CLAUDE.md"
+skill_dir = ""
+"#;
+                std::fs::write(&cli.config, template)
+                    .with_context(|| format!("failed to write {}", cli.config.display()))?;
+                println!(
+                    "Created {} — edit it with your repo URLs and agent config.",
+                    cli.config.display()
+                );
+            }
+        }
+        Command::Link { files } => {
+            let code_repo_path = std::env::current_dir()?;
+            let paths_to_process = resolve_md_files(files, &code_repo_path);
+
+            for file_path in &paths_to_process {
+                let doc = match kedge::frontmatter::parse_doc_file(file_path, "") {
+                    Some(d) => d,
+                    None => continue,
+                };
+
+                let n = doc.frontmatter.anchors.len();
+                let stamped = stamp_anchors(&code_repo_path, file_path, &doc.frontmatter.anchors);
+                println!(
+                    "Linked {} ({}/{} anchors stamped)",
+                    file_path.display(),
+                    stamped,
+                    n
+                );
+            }
+        }
+        Command::Check { report } => {
+            let code_repo_path = std::env::current_dir()?;
+            let rn = repo_name(&code_repo_path);
+            let cru = code_repo_url(&code_repo_path);
+
+            let docs_path = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+                std::path::PathBuf::from(p)
+            } else {
+                let config = kedge::config::Config::from_file(&cli.config)
+                    .context("failed to load kedge.toml — run `kedge init` first")?;
+                resolve_docs_path(&config)?
+            };
+
+            let drift_report =
+                kedge::detection::detect_drift(&code_repo_path, &docs_path, &cru, &rn)?;
+
+            let json = serde_json::to_string_pretty(&drift_report)?;
+
+            match &report {
+                Some(path) => {
+                    std::fs::write(path, &json)?;
+                    eprintln!("Report written to {}", path.display());
+                }
+                None => println!("{}", json),
+            }
+
+            if !drift_report.drifted.is_empty() {
+                std::process::exit(1);
+            }
+        }
+        Command::Triage { report } => {
+            let json_input = match &report {
+                Some(path) => std::fs::read_to_string(path)
+                    .with_context(|| format!("failed to read report file {}", path.display()))?,
+                None => {
+                    use std::io::Read;
+                    let mut buf = String::new();
+                    std::io::stdin()
+                        .read_to_string(&mut buf)
+                        .context("failed to read drift report from stdin")?;
+                    buf
+                }
+            };
+
+            let drift_report: kedge::models::DriftReport =
+                serde_json::from_str(&json_input).context("failed to parse drift report JSON")?;
+
+            let config = kedge::config::Config::from_file(&cli.config)
+                .context("failed to load kedge.toml — triage requires a [triage] config")?;
+            let docs_path = resolve_docs_path(&config)?;
+
+            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
+
+            let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
+            let triaged = rt.block_on(kedge::triage::triage_drift_report(
+                &drift_report,
+                &config.triage,
+                &doc_contents,
+            ))?;
+
+            println!("{}", serde_json::to_string_pretty(&triaged)?);
+        }
+        Command::Update { report } => {
+            let config = kedge::config::Config::from_file(&cli.config)
+                .context("failed to load kedge.toml — run `kedge init` first")?;
+
+            let code_repo_path = std::env::current_dir()?;
+            let rn = repo_name(&code_repo_path);
+            let cru = code_repo_url(&code_repo_path);
+
+            let docs_path = resolve_docs_path(&config)?;
+
+            let drift_report =
+                kedge::detection::detect_drift(&code_repo_path, &docs_path, &cru, &rn)?;
+
+            if let Some(path) = &report {
+                let json = serde_json::to_string_pretty(&drift_report)?;
+                std::fs::write(path, &json)?;
+                eprintln!("Drift report written to {}", path.display());
+            }
+
+            if drift_report.drifted.is_empty() {
+                println!("No drift detected.");
+                return Ok(());
+            }
+
+            let current_commit = drift_report.commit.clone();
+            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
+
+            let anchor_count: usize = drift_report.drifted.iter().map(|d| d.anchors.len()).sum();
+            eprintln!(
+                "Sending {} drifted anchor(s) across {} doc(s) to {} for triage...",
+                anchor_count,
+                drift_report.drifted.len(),
+                config.triage.provider,
+            );
+
+            let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
+            let triaged = rt.block_on(kedge::triage::triage_drift_report(
+                &drift_report,
+                &config.triage,
+                &doc_contents,
+            ))?;
+
+            let (to_remediate, to_sync) = kedge::remediation::partition_by_action(&triaged);
+
+            let mut remediated: Vec<kedge::models::RemediatedDoc> = Vec::new();
+            let mut errors: Vec<String> = Vec::new();
+
+            if config.remediation.batch && to_remediate.len() > 1 {
+                let batch_payload = kedge::remediation::build_batch_agent_payload(
+                    &to_remediate,
+                    &current_commit,
+                    &config.remediation.auto_merge_severities,
+                );
+                let batch_auto_merge = batch_payload.auto_merge;
+                let payload_json = serde_json::to_string(&batch_payload)
+                    .context("failed to serialize batch agent payload")?;
+
+                match kedge::remediation::agent::invoke_agent(
+                    &config.remediation.agent_command,
+                    &payload_json,
+                    config.remediation.agent_timeout,
+                    &config.remediation.agent_env,
+                ) {
+                    Ok(output) => {
+                        let (_single, mut urls) = kedge::output::parse_agent_output(&output);
+                        for doc in &to_remediate {
+                            // Best-effort heuristic: match URL containing the doc's file stem
+                            let stem = std::path::Path::new(&doc.doc)
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or(&doc.doc);
+                            let mr_url = urls
+                                .iter()
+                                .position(|u| u.contains(stem))
+                                .map(|i| urls.remove(i))
+                                .or_else(|| {
+                                    if !urls.is_empty() {
+                                        Some(urls.remove(0))
+                                    } else {
+                                        None
+                                    }
+                                });
+
+                            remediated.push(kedge::models::RemediatedDoc {
+                                doc: doc.doc.clone(),
+                                repo: doc.doc_repo.clone(),
+                                mr_url,
+                                severity: doc.severity,
+                                auto_merged: batch_auto_merge,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        for doc in &to_remediate {
+                            errors.push(format!("{}: {}", doc.doc, e));
+                        }
+                    }
+                }
+            } else {
+                // Per-doc mode (default): one agent invocation per drifted doc
+                for doc in &to_remediate {
+                    let auto_merge = kedge::remediation::should_auto_merge(
+                        doc.severity,
+                        &config.remediation.auto_merge_severities,
+                    );
+                    let payload =
+                        kedge::remediation::build_agent_payload(doc, &current_commit, auto_merge);
+                    let payload_json = serde_json::to_string(&payload)
+                        .context("failed to serialize agent payload")?;
+
+                    match kedge::remediation::agent::invoke_agent(
+                        &config.remediation.agent_command,
+                        &payload_json,
+                        config.remediation.agent_timeout,
+                        &config.remediation.agent_env,
+                    ) {
+                        Ok(output) => {
+                            let (mr_url, _all) = kedge::output::parse_agent_output(&output);
+                            remediated.push(kedge::models::RemediatedDoc {
+                                doc: doc.doc.clone(),
+                                repo: doc.doc_repo.clone(),
+                                mr_url,
+                                severity: doc.severity,
+                                auto_merged: auto_merge,
+                            });
+                        }
+                        Err(e) => {
+                            errors.push(format!("{}: {}", doc.doc, e));
+                        }
+                    }
+                }
+            }
+
+            let provenance_advanced: Vec<kedge::models::ProvenanceSynced> = to_sync
+                .iter()
+                .map(|doc| {
+                    let doc_file = docs_path.join(&doc.doc);
+                    let anchors: Vec<kedge::models::Anchor> = doc
+                        .anchors
+                        .iter()
+                        .map(|a| kedge::models::Anchor {
+                            repo: String::new(),
+                            path: a.path.clone(),
+                            symbol: a.symbol.clone(),
+                            provenance: a.provenance.clone(),
+                        })
+                        .collect();
+                    let synced = stamp_anchors(&code_repo_path, &doc_file, &anchors);
+                    kedge::models::ProvenanceSynced {
+                        doc: doc.doc.clone(),
+                        anchors_synced: synced,
+                        reason: "no_update — code changes did not affect documentation accuracy"
+                            .to_string(),
+                    }
+                })
+                .collect();
+
+            let summary = kedge::models::RemediationSummary {
+                remediated,
+                provenance_advanced,
+                errors,
+            };
+            println!("{}", serde_json::to_string_pretty(&summary)?);
+        }
+        Command::Status => {
+            let docs_path_str =
+                std::env::var("KEDGE_DOCS_PATH").unwrap_or_else(|_| "docs".to_string());
+            let docs_path = std::path::PathBuf::from(&docs_path_str);
+
+            let cwd = std::env::current_dir()?;
+            let cru = code_repo_url(&cwd);
+
+            let docs = kedge::frontmatter::scan_docs(&docs_path, &cru, None);
+
+            if docs.is_empty() {
+                println!(
+                    "No docs with kedge frontmatter found in {}",
+                    docs_path.display()
+                );
+            } else {
+                for doc in &docs {
+                    let group = doc.frontmatter.group.as_deref().unwrap_or("(no group)");
+                    println!("{} [group: {}]", doc.path, group);
+                    for anchor in &doc.frontmatter.anchors {
+                        let symbol_part = anchor
+                            .symbol
+                            .as_deref()
+                            .map(|s| format!("#{}", s))
+                            .unwrap_or_default();
+                        println!(
+                            "  anchor: {}{}  provenance: {}",
+                            anchor.path, symbol_part, anchor.provenance
+                        );
+                    }
+                }
+            }
+        }
+        Command::Sync { files } => {
+            let code_repo_path = std::env::current_dir()?;
+            let paths_to_process = resolve_md_files(files, &code_repo_path);
+
+            let mut total_anchors = 0usize;
+            for file_path in &paths_to_process {
+                let doc = match kedge::frontmatter::parse_doc_file(file_path, "") {
+                    Some(d) => d,
+                    None => continue,
+                };
+                total_anchors +=
+                    stamp_anchors(&code_repo_path, file_path, &doc.frontmatter.anchors);
+            }
+
+            println!(
+                "Synced {} anchors with content-addressed provenance",
+                total_anchors
+            );
+        }
+        Command::Install {
+            group,
+            agent,
+            link,
+            workspace,
+            check,
+        } => {
+            let config = kedge::config::Config::from_file(&cli.config)
+                .context("failed to load kedge.toml — run `kedge init` first")?;
+
+            let is_ci = std::env::var("CI").is_ok()
+                || std::env::var("GITHUB_ACTIONS").is_ok()
+                || std::env::var("GITLAB_CI").is_ok();
+            let use_workspace = workspace || (is_ci && !link);
+
+            let platforms: Vec<&kedge::config::AgentPlatform> = match &agent {
+                Some(name) => {
+                    if let Some(p) = config.find_agent(name) {
+                        vec![p]
+                    } else {
+                        anyhow::bail!("unknown agent platform: {}", name);
+                    }
+                }
+                None => config.agents.iter().collect(),
+            };
+
+            for doc_repo in &config.repos.docs {
+                if check {
+                    match kedge::install::repo_cache::is_up_to_date(
+                        &doc_repo.url,
+                        &doc_repo.git_ref,
+                        config.repos.git_timeout,
+                    ) {
+                        Ok(true) => {
+                            eprintln!(
+                                "steering docs are up to date ({})",
+                                kedge::safety::sanitize_url(&doc_repo.url)
+                            );
+                            continue;
+                        }
+                        Ok(false) => {}
+                        Err(e) => eprintln!("warning: could not check staleness: {}", e),
+                    }
+                }
+
+                let source_dir = kedge::install::repo_cache::get_or_clone(
+                    &doc_repo.url,
+                    &doc_repo.git_ref,
+                    config.repos.git_timeout,
+                )
+                .with_context(|| {
+                    format!(
+                        "failed to get/clone repo {}",
+                        kedge::safety::sanitize_url(&doc_repo.url)
+                    )
+                })?;
+
+                for platform in &platforms {
+                    let target_dir = if use_workspace {
+                        let workspace_steering =
+                            shellexpand::tilde(&platform.workspace_steering).into_owned();
+                        std::path::PathBuf::from(workspace_steering)
+                    } else {
+                        let global_steering =
+                            shellexpand::tilde(&platform.global_steering).into_owned();
+                        std::path::PathBuf::from(global_steering)
+                    };
+
+                    let agents_file = if platform.agents_file.is_empty() {
+                        None
+                    } else {
+                        Some(platform.agents_file.as_str())
+                    };
+
+                    let skill_dir = if platform.skill_dir.is_empty() {
+                        None
+                    } else {
+                        let expanded = shellexpand::tilde(&platform.skill_dir).into_owned();
+                        Some(std::path::PathBuf::from(expanded))
+                    };
+
+                    if use_workspace {
+                        kedge::install::install_to_workspace(
+                            &source_dir,
+                            &target_dir,
+                            group.as_deref(),
+                            agents_file,
+                            skill_dir.as_deref(),
+                        )
+                        .with_context(|| {
+                            format!("install_to_workspace failed for {}", platform.name)
+                        })?;
+
+                        if let Ok(cwd) = std::env::current_dir() {
+                            let rel = target_dir.strip_prefix(&cwd).unwrap_or(&target_dir);
+                            let _ =
+                                kedge::install::add_to_git_exclude(&cwd, &rel.to_string_lossy());
+                        }
+                    } else {
+                        kedge::install::install_as_links(
+                            &source_dir,
+                            &target_dir,
+                            group.as_deref(),
+                            agents_file,
+                            skill_dir.as_deref(),
+                        )
+                        .with_context(|| {
+                            format!("install_as_links failed for {}", platform.name)
+                        })?;
+                    }
+
+                    eprintln!(
+                        "installed steering to {} ({})",
+                        target_dir.display(),
+                        platform.name
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

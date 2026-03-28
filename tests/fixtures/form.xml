@@ -1,0 +1,5 @@
+<form id="loginForm" action="auth/login">
+  <field name="username" type="text" required="true" />
+  <field name="password" type="password" required="true" />
+  <button type="submit" label="Sign In" />
+</form>

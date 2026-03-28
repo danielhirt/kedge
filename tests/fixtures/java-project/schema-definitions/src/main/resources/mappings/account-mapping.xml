@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping name="account-mapping" source="nexus-internal" target="iso20022"
+         version="1.2" schema="acmt.001.001.02">
+
+  <!-- Account opening instruction -->
+  <field-group name="account-opening" to="AcctOpngInstr">
+    <field from="accountId" to="AcctId/Othr/Id" transform="uuid-strip-dashes" />
+    <field from="createdAt" to="CreDtTm" transform="instant-to-iso-datetime" />
+
+    <!-- Account holder identification -->
+    <field-group name="account-holder" to="AcctPty">
+      <field from="businessName" to="Nm" maxLength="140" />
+      <field from="merchantId" to="Id/OrgId/Othr/Id" />
+      <field from="merchantId" to="Id/OrgId/Othr/SchmeNm/Prtry" default="NEXUS_MERCHANT_ID" />
+
+      <!-- Address -->
+      <field from="address.street" to="PstlAdr/StrtNm" maxLength="70" />
+      <field from="address.buildingNumber" to="PstlAdr/BldgNb" maxLength="16" />
+      <field from="address.city" to="PstlAdr/TwnNm" maxLength="35" />
+      <field from="address.region" to="PstlAdr/CtrySubDvsn" maxLength="35" />
+      <field from="address.postalCode" to="PstlAdr/PstCd" maxLength="16" />
+      <field from="address.country" to="PstlAdr/Ctry" validate="iso3166-alpha2" />
+
+      <!-- Contact -->
+      <field from="email" to="CtctDtls/EmailAdr" validate="email" />
+      <field from="phone" to="CtctDtls/PhneNb" validate="e164" />
+    </field-group>
+
+    <!-- Account details -->
+    <field from="tier" to="AcctTp/Prtry" />
+    <field from="currency" to="Ccy" validate="iso4217" default="USD" />
+
+    <!-- KYC status -->
+    <field-group name="kyc" to="AddtlInf">
+      <field from="kycDocumentId" to="Envlp/Elmt[@name='kycDocId']" />
+      <field from="kycStatus" to="Envlp/Elmt[@name='kycStatus']" />
+      <field from="verifiedAt" to="Envlp/Elmt[@name='verifiedAt']"
+             transform="instant-to-iso-datetime" />
+    </field-group>
+  </field-group>
+
+  <!-- Validation rules -->
+  <validations>
+    <required fields="accountId,businessName,merchantId,email" />
+    <format field="email" pattern="^[^@]+@[^@]+\.[^@]+$" />
+    <enum field="tier" values="STANDARD,PREMIUM,ENTERPRISE" />
+  </validations>
+</mapping>
