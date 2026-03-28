@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::process::{self, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
 pub fn invoke_agent(
@@ -42,8 +42,7 @@ pub fn invoke_agent(
         Ok(buf)
     });
 
-    // Save PID before moving child into the wait thread
-    let child_pid = child.id();
+    let _child_pid = child.id();
     let timeout = Duration::from_secs(timeout_secs);
     let cmd_str = command.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
@@ -54,11 +53,10 @@ pub fn invoke_agent(
     let status = match rx.recv_timeout(timeout) {
         Ok(result) => result.context("failed to wait on agent process")?,
         Err(_) => {
-            // kill(2) via the nix-free route: just send SIGKILL by PID
             #[cfg(unix)]
             {
-                let _ = process::Command::new("kill")
-                    .args(["-9", &child_pid.to_string()])
+                let _ = std::process::Command::new("kill")
+                    .args(["-9", &_child_pid.to_string()])
                     .status();
             }
             bail!(

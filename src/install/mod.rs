@@ -7,6 +7,7 @@ use crate::safety;
 
 enum InstallMode {
     Copy,
+    #[cfg(unix)]
     Link,
 }
 
@@ -35,6 +36,7 @@ fn install_steering(
                     format!("failed to copy {} to {}", src.display(), dst.display())
                 })?;
             }
+            #[cfg(unix)]
             InstallMode::Link => {
                 create_symlink(src, dst)?;
             }
@@ -110,6 +112,7 @@ pub fn install_to_workspace(
     )
 }
 
+#[cfg(unix)]
 pub fn install_as_links(
     source_dir: &Path,
     target_dir: &Path,
@@ -165,6 +168,7 @@ pub fn add_to_git_exclude(workspace_root: &Path, dir_to_exclude: &str) -> Result
     Ok(())
 }
 
+#[cfg(unix)]
 fn create_symlink(src: &Path, dst: &Path) -> Result<()> {
     if dst.exists() || dst.symlink_metadata().is_ok() {
         std::fs::remove_file(dst)

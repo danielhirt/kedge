@@ -572,6 +572,7 @@ skill_dir = ""
                                 kedge::install::add_to_git_exclude(&cwd, &rel.to_string_lossy());
                         }
                     } else {
+                        #[cfg(unix)]
                         kedge::install::install_as_links(
                             &source_dir,
                             &target_dir,
@@ -582,6 +583,10 @@ skill_dir = ""
                         .with_context(|| {
                             format!("install_as_links failed for {}", platform.name)
                         })?;
+                        #[cfg(not(unix))]
+                        anyhow::bail!(
+                            "--link mode requires a unix system (use --workspace instead)"
+                        );
                     }
 
                     eprintln!(

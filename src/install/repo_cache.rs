@@ -27,7 +27,7 @@ fn run_git(args: &[&str], timeout_secs: u64, context: &str) -> Result<Vec<u8>> {
         .spawn()
         .with_context(|| format!("failed to spawn git for {}", context))?;
 
-    let child_pid = child.id();
+    let _child_pid = child.id();
     let timeout = Duration::from_secs(timeout_secs);
     let ctx = context.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
@@ -48,7 +48,7 @@ fn run_git(args: &[&str], timeout_secs: u64, context: &str) -> Result<Vec<u8>> {
             #[cfg(unix)]
             {
                 let _ = std::process::Command::new("kill")
-                    .args(["-9", &child_pid.to_string()])
+                    .args(["-9", &_child_pid.to_string()])
                     .status();
             }
             bail!("git {} timed out after {}s", ctx, timeout_secs);
