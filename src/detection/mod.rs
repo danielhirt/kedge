@@ -1,46 +1,24 @@
 pub mod fingerprint;
 pub mod git;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Result;
 
 use crate::frontmatter::scan_docs;
 use crate::models::{CleanDoc, DriftReport, DriftedAnchor, DriftedDoc};
 
-use self::fingerprint::{Language, ast_fingerprint, content_hash};
+use self::fingerprint::{compute_sig, SIG_PREFIX};
 use self::git::{diff_since, diff_summary, head_sha, read_file_at_rev};
 
 /// Normalise a git remote URL to a canonical path string for comparison.
-///
-/// For `file:///some/path` this returns `/some/path`.
-/// For other URLs (https://, git@…) we return the URL unchanged for an
-/// exact-string comparison.
 fn repo_path_from_url(url: &str) -> &str {
     url.strip_prefix("file://").unwrap_or(url)
 }
 
-/// Return true when `anchor_repo` refers to the same repository as
-/// `code_repo_url`.  We compare the canonical path/URL strings so that
-/// `file:///tmp/x` matches `file:///tmp/x` but also handles the case where
-/// one side carries the `file://` prefix and the other doesn't.
+/// Return true when `anchor_repo` refers to the same repository as `code_repo_url`.
 fn anchor_matches_repo(anchor_repo: &str, code_repo_url: &str) -> bool {
     repo_path_from_url(anchor_repo) == repo_path_from_url(code_repo_url)
-}
-
-/// Compute a stable fingerprint for `content` using AST when the language is
-/// supported, falling back to a content-hash otherwise.
-fn fingerprint(content: &str, path: &str, symbol: Option<&str>) -> String {
-    let ext = PathBuf::from(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_string();
-
-    match Language::from_extension(&ext) {
-        Some(lang) => ast_fingerprint(content, lang, symbol).unwrap_or_else(|_| content_hash(content)),
-        None => content_hash(content),
-    }
 }
 
 /// Run the detection pipeline over a docs directory against a local code repository.
@@ -56,17 +34,12 @@ pub fn detect_drift(
     repo_name: &str,
 ) -> Result<DriftReport> {
     let docs_dir = docs_dir.as_ref();
-
-    // 1. Current HEAD of the code repository.
     let current_sha = head_sha(code_repo_path)?;
-
-    // 2. Scan docs directory — no group filter here.
     let docs = scan_docs(docs_dir, code_repo_url, None);
 
     let mut drifted: Vec<DriftedDoc> = Vec::new();
     let mut clean: Vec<CleanDoc> = Vec::new();
 
-    // 3. For each doc and each anchor decide whether it has drifted.
     for doc in &docs {
         let relevant_anchors: Vec<_> = doc
             .frontmatter
@@ -76,29 +49,56 @@ pub fn detect_drift(
             .collect();
 
         if relevant_anchors.is_empty() {
-            // This doc has no anchors pointing at our repo – skip it.
             continue;
         }
 
         let mut drifted_anchors: Vec<DriftedAnchor> = Vec::new();
 
         for anchor in &relevant_anchors {
-            // Read file at provenance commit and at HEAD.
-            let content_at_provenance =
-                read_file_at_rev(code_repo_path, &anchor.provenance, &anchor.path)?;
-            let content_at_head =
-                read_file_at_rev(code_repo_path, &current_sha, &anchor.path)?;
-
             let symbol = anchor.symbol.as_deref();
-            let fp_provenance = fingerprint(&content_at_provenance, &anchor.path, symbol);
-            let fp_head = fingerprint(&content_at_head, &anchor.path, symbol);
 
-            if fp_provenance != fp_head {
-                let diff = diff_since(code_repo_path, &anchor.provenance, &anchor.path)
-                    .unwrap_or_default();
-                let diff_sum =
+            let is_drifted = if anchor.provenance.starts_with(SIG_PREFIX) {
+                // Content-addressed provenance: compare fingerprint directly
+                // No git history needed — just read the current file
+                let current_content = std::fs::read_to_string(
+                    code_repo_path.join(&anchor.path),
+                ).or_else(|_| {
+                    // Fall back to reading from HEAD commit
+                    read_file_at_rev(code_repo_path, &current_sha, &anchor.path)
+                })?;
+
+                let current_sig = compute_sig(&current_content, &anchor.path, symbol);
+                current_sig != anchor.provenance
+            } else {
+                // Legacy git SHA provenance: read at both revisions and compare fingerprints
+                let content_at_provenance =
+                    read_file_at_rev(code_repo_path, &anchor.provenance, &anchor.path)?;
+                let content_at_head =
+                    read_file_at_rev(code_repo_path, &current_sha, &anchor.path)?;
+
+                let sig_provenance = compute_sig(&content_at_provenance, &anchor.path, symbol);
+                let sig_head = compute_sig(&content_at_head, &anchor.path, symbol);
+                sig_provenance != sig_head
+            };
+
+            if is_drifted {
+                // Generate diff for context (best-effort — may fail for sig: provenance
+                // if no matching commit exists, which is fine)
+                let diff = if anchor.provenance.starts_with(SIG_PREFIX) {
+                    // No git commit to diff against — provide empty diff
+                    // The triage model works from the doc content + current code
+                    String::new()
+                } else {
+                    diff_since(code_repo_path, &anchor.provenance, &anchor.path)
+                        .unwrap_or_default()
+                };
+
+                let diff_sum = if anchor.provenance.starts_with(SIG_PREFIX) {
+                    "content fingerprint changed".to_string()
+                } else {
                     diff_summary(code_repo_path, &anchor.provenance, &anchor.path)
-                        .unwrap_or_default();
+                        .unwrap_or_default()
+                };
 
                 drifted_anchors.push(DriftedAnchor {
                     path: anchor.path.clone(),

@@ -76,11 +76,8 @@ skill_dir = ""
         }
         Command::Link { files } => {
             let code_repo_path = std::env::current_dir()?;
-            let sha = steer::detection::git::head_sha(&code_repo_path)
-                .unwrap_or_else(|_| "unknown".to_string());
 
             let paths_to_process: Vec<std::path::PathBuf> = if files.is_empty() {
-                // Glob all .md files under the current directory.
                 let pattern = format!("{}/**/*.md", code_repo_path.display());
                 glob::glob(&pattern)
                     .into_iter()
@@ -92,24 +89,40 @@ skill_dir = ""
             };
 
             for file_path in &paths_to_process {
-                // Only process files with steer frontmatter.
                 let doc = match steer::frontmatter::parse_doc_file(file_path, "") {
                     Some(d) => d,
                     None => continue,
                 };
 
                 let n = doc.frontmatter.anchors.len();
+                let mut stamped = 0;
                 for anchor in &doc.frontmatter.anchors {
+                    // Read the current file and compute a content-addressed sig
+                    let code_file = code_repo_path.join(&anchor.path);
+                    let sig = match std::fs::read_to_string(&code_file) {
+                        Ok(content) => steer::detection::fingerprint::compute_sig(
+                            &content,
+                            &anchor.path,
+                            anchor.symbol.as_deref(),
+                        ),
+                        Err(e) => {
+                            eprintln!("warning: cannot read {}: {}", anchor.path, e);
+                            continue;
+                        }
+                    };
+
                     if let Err(e) = steer::frontmatter::update_provenance(
                         file_path,
                         &anchor.path,
                         anchor.symbol.as_deref(),
-                        &sha,
+                        &sig,
                     ) {
                         eprintln!("warning: {}", e);
+                    } else {
+                        stamped += 1;
                     }
                 }
-                println!("Linked {} ({} anchors stamped at {})", file_path.display(), n, sha);
+                println!("Linked {} ({}/{} anchors stamped)", file_path.display(), stamped, n);
             }
         }
         Command::Check { report } => {
@@ -316,17 +329,28 @@ skill_dir = ""
                 }
             }
 
-            // 6. Advance provenance for no_update anchors
+            // 6. Advance provenance for no_update anchors (content-addressed)
             let mut provenance_advanced: Vec<steer::models::ProvenanceSynced> = Vec::new();
             for doc in &to_sync {
                 let doc_file = docs_path.join(&doc.doc);
                 let mut synced = 0usize;
                 for anchor in &doc.anchors {
+                    // Compute current content sig for the anchor
+                    let code_file = code_repo_path.join(&anchor.path);
+                    let sig = match std::fs::read_to_string(&code_file) {
+                        Ok(content) => steer::detection::fingerprint::compute_sig(
+                            &content,
+                            &anchor.path,
+                            anchor.symbol.as_deref(),
+                        ),
+                        Err(_) => continue,
+                    };
+
                     if let Err(e) = steer::frontmatter::update_provenance(
                         &doc_file,
                         &anchor.path,
                         anchor.symbol.as_deref(),
-                        &current_commit,
+                        &sig,
                     ) {
                         eprintln!("warning: failed to sync provenance for {}: {}", doc.doc, e);
                     } else {
@@ -381,8 +405,6 @@ skill_dir = ""
         }
         Command::Sync { files } => {
             let code_repo_path = std::env::current_dir()?;
-            let sha = steer::detection::git::head_sha(&code_repo_path)
-                .unwrap_or_else(|_| "unknown".to_string());
 
             let paths_to_process: Vec<std::path::PathBuf> = if files.is_empty() {
                 let pattern = format!("{}/**/*.md", code_repo_path.display());
@@ -403,11 +425,24 @@ skill_dir = ""
                 };
 
                 for anchor in &doc.frontmatter.anchors {
+                    let code_file = code_repo_path.join(&anchor.path);
+                    let sig = match std::fs::read_to_string(&code_file) {
+                        Ok(content) => steer::detection::fingerprint::compute_sig(
+                            &content,
+                            &anchor.path,
+                            anchor.symbol.as_deref(),
+                        ),
+                        Err(e) => {
+                            eprintln!("warning: cannot read {}: {}", anchor.path, e);
+                            continue;
+                        }
+                    };
+
                     if let Err(e) = steer::frontmatter::update_provenance(
                         file_path,
                         &anchor.path,
                         anchor.symbol.as_deref(),
-                        &sha,
+                        &sig,
                     ) {
                         eprintln!("warning: {}", e);
                     } else {
@@ -416,7 +451,7 @@ skill_dir = ""
                 }
             }
 
-            println!("Synced {} anchors to provenance {}", total_anchors, sha);
+            println!("Synced {} anchors with content-addressed provenance", total_anchors);
         }
         Command::Install { group, agent, link, workspace, check } => {
             let config = steer::config::Config::from_file(&cli.config)

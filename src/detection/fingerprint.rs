@@ -38,6 +38,28 @@ impl Language {
     }
 }
 
+/// Prefix for content-addressed provenance values.
+pub const SIG_PREFIX: &str = "sig:";
+
+/// Compute a content-addressed provenance signature for a file.
+/// Returns `sig:<hex>` — an AST fingerprint for supported languages,
+/// or a content hash for unsupported ones.
+pub fn compute_sig(content: &str, path: &str, symbol: Option<&str>) -> String {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+
+    let hash = match Language::from_extension(ext) {
+        Some(lang) => ast_fingerprint(content, lang, symbol)
+            .unwrap_or_else(|_| content_hash(content)),
+        None => content_hash(content),
+    };
+
+    // Truncate to 16 hex chars for readability (64 bits — sufficient for drift detection)
+    format!("{SIG_PREFIX}{}", &hash[..16])
+}
+
 /// SHA-256 hash of raw content (fallback for unsupported languages).
 pub fn content_hash(content: &str) -> String {
     let mut hasher = Sha256::new();

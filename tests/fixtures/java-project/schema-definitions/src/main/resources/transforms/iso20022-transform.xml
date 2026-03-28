@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<transform name="iso20022-payment-initiation" version="1.3"
+           inputMapping="payment-mapping"
+           outputFormat="pain.001.001.09"
+           encoding="UTF-8">
+
+  <!-- Output document structure -->
+  <output>
+    <envelope namespace="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
+      <root element="Document">
+        <child element="CstmrCdtTrfInitn" />
+      </root>
+    </envelope>
+  </output>
+
+  <!-- Pre-processing rules -->
+  <pre-processing>
+    <rule name="normalize-amount">
+      <description>Round amounts to 2 decimal places for standard currencies</description>
+      <match field="currency" operator="not_in" value="JPY,KRW,VND" />
+      <action type="round" field="amount" decimals="2" mode="HALF_UP" />
+    </rule>
+    <rule name="normalize-amount-zero-decimal">
+      <description>Remove decimal places for zero-decimal currencies</description>
+      <match field="currency" operator="in" value="JPY,KRW,VND" />
+      <action type="round" field="amount" decimals="0" mode="HALF_UP" />
+    </rule>
+    <rule name="uppercase-country-codes">
+      <action type="uppercase" fields="payer.address.country,merchant.address.country,currency" />
+    </rule>
+  </pre-processing>
+
+  <!-- Field transformation functions -->
+  <functions>
+    <function name="uuid-to-msgid">
+      <description>Convert UUID to ISO 20022 message ID format</description>
+      <steps>
+        <step type="strip-dashes" />
+        <step type="prefix" value="NEXUS" />
+        <step type="truncate" maxLength="35" />
+      </steps>
+    </function>
+    <function name="uuid-strip-dashes">
+      <steps>
+        <step type="replace" pattern="-" replacement="" />
+      </steps>
+    </function>
+    <function name="instant-to-iso-datetime">
+      <steps>
+        <step type="format" pattern="yyyy-MM-dd'T'HH:mm:ss.SSS'Z'" timezone="UTC" />
+      </steps>
+    </function>
+    <function name="localdate-to-iso">
+      <steps>
+        <step type="format" pattern="yyyy-MM-dd" />
+      </steps>
+    </function>
+  </functions>
+
+  <!-- Post-processing validations -->
+  <post-processing>
+    <validate schema="pain.001.001.09.xsd" failAction="reject" />
+    <sign algorithm="xmldsig-sha256" keyAlias="nexus-signing-key" />
+  </post-processing>
+</transform>

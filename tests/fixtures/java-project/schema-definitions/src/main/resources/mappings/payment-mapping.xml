@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping name="payment-mapping" source="nexus-internal" target="iso20022"
+         version="2.0" schema="pain.001.001.09">
+
+  <!-- Message identification -->
+  <field from="paymentId" to="GrpHdr/MsgId" transform="uuid-to-msgid" />
+  <field from="createdAt" to="GrpHdr/CreDtTm" transform="instant-to-iso-datetime" />
+  <field from="merchantId" to="GrpHdr/InitgPty/Id/OrgId/Othr/Id" />
+
+  <!-- Payment information -->
+  <field-group name="payment-info" to="PmtInf">
+    <field from="paymentId" to="PmtInfId" transform="uuid-strip-dashes" />
+    <field from="paymentMethod" to="PmtMtd" default="TRF" />
+    <field from="requestedExecutionDate" to="ReqdExctnDt/Dt" transform="localdate-to-iso" />
+
+    <!-- Debtor (payer) information -->
+    <field-group name="debtor" to="Dbtr">
+      <field from="payer.name" to="Nm" maxLength="70" />
+      <field from="payer.address.street" to="PstlAdr/StrtNm" />
+      <field from="payer.address.city" to="PstlAdr/TwnNm" />
+      <field from="payer.address.postalCode" to="PstlAdr/PstCd" />
+      <field from="payer.address.country" to="PstlAdr/Ctry" validate="iso3166-alpha2" />
+    </field-group>
+
+    <!-- Debtor account -->
+    <field from="payer.iban" to="DbtrAcct/Id/IBAN" validate="iban" />
+    <field from="payer.bankBic" to="DbtrAgt/FinInstnId/BICFI" validate="bic" />
+
+    <!-- Credit transfer -->
+    <field-group name="credit-transfer" to="CdtTrfTxInf">
+      <field from="paymentId" to="PmtId/EndToEndId" transform="uuid-strip-dashes" />
+      <field from="amount" to="Amt/InstdAmt" type="decimal" currencyAttr="Ccy" />
+      <field from="currency" to="Amt/InstdAmt/@Ccy" validate="iso4217" />
+
+      <!-- Creditor (payee) information -->
+      <field-group name="creditor" to="Cdtr">
+        <field from="merchant.name" to="Nm" maxLength="70" />
+        <field from="merchant.address.country" to="PstlAdr/Ctry" validate="iso3166-alpha2" />
+      </field-group>
+
+      <field from="merchant.iban" to="CdtrAcct/Id/IBAN" validate="iban" />
+      <field from="merchant.bankBic" to="CdtrAgt/FinInstnId/BICFI" validate="bic" />
+      <field from="description" to="RmtInf/Ustrd" maxLength="140" />
+    </field-group>
+  </field-group>
+
+  <!-- Validation rules -->
+  <validations>
+    <required fields="paymentId,amount,currency,payer.name,merchant.name" />
+    <format field="currency" pattern="[A-Z]{3}" />
+    <range field="amount" min="0.01" max="999999999.99" />
+  </validations>
+</mapping>

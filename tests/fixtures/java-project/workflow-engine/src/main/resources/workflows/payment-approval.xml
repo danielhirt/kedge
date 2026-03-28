@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow name="payment-approval" version="2.1">
+  <trigger event="payment.created" />
+
+  <stages>
+    <stage name="validation">
+      <rule id="amount-check">
+        <condition field="amount" operator="gt" value="10000" />
+        <action type="flag" reason="high-value-transaction" />
+      </rule>
+      <rule id="currency-check">
+        <condition field="currency" operator="in" value="USD,EUR,GBP,CAD,AUD" />
+        <action type="pass" />
+      </rule>
+      <rule id="unsupported-currency">
+        <condition field="currency" operator="not_in" value="USD,EUR,GBP,CAD,AUD,JPY,CHF,SEK,NOK,DKK" />
+        <action type="reject" reason="unsupported-currency" />
+      </rule>
+    </stage>
+
+    <stage name="fraud-screening" requires="validation">
+      <rule id="velocity-check">
+        <condition field="merchantTransactionsLast24h" operator="gt" value="500" />
+        <action type="flag" reason="high-velocity-merchant" />
+      </rule>
+      <rule id="country-risk">
+        <condition field="cardIssuerCountry" operator="in" value="NG,VE,PK" />
+        <action type="flag" reason="high-risk-country" />
+      </rule>
+      <rule id="card-testing-pattern">
+        <condition field="amount" operator="lt" value="1.00" />
+        <action type="reject" reason="possible-card-testing" />
+      </rule>
+    </stage>
+
+    <stage name="approval" requires="fraud-screening">
+      <gate type="manual-review" assignee="payments-team" />
+      <timeout duration="24h" action="escalate" />
+    </stage>
+
+    <stage name="settlement-routing" requires="approval">
+      <rule id="domestic-route">
+        <condition field="cardIssuerCountry" operator="eq" value="US" />
+        <action type="route" reason="domestic-settlement" />
+      </rule>
+      <rule id="cross-border-route">
+        <condition field="cardIssuerCountry" operator="neq" value="US" />
+        <action type="route" reason="cross-border-settlement" />
+      </rule>
+    </stage>
+  </stages>
+</workflow>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<transform name="swift-mt103" version="2.1"
+           inputMapping="payment-mapping"
+           outputFormat="MT103"
+           encoding="ASCII">
+
+  <!-- SWIFT MT103 field mapping -->
+  <output>
+    <message type="MT103" category="1" group="03">
+      <header>
+        <field tag="20" from="paymentId" transform="swift-reference" maxLength="16" />
+        <field tag="23B" value="CRED" />
+        <field tag="32A">
+          <subfield from="requestedExecutionDate" transform="swift-date" />
+          <subfield from="currency" />
+          <subfield from="amount" transform="swift-amount" />
+        </field>
+      </header>
+      <body>
+        <!-- Ordering customer (debtor) -->
+        <field tag="50K">
+          <line from="payer.name" maxLength="35" />
+          <line from="payer.address.street" maxLength="35" />
+          <line from="payer.address.city" maxLength="35" />
+          <line from="payer.address.country" maxLength="35" />
+        </field>
+        <!-- Ordering institution -->
+        <field tag="52A" from="payer.bankBic" validate="bic" />
+        <!-- Beneficiary customer (creditor) -->
+        <field tag="59">
+          <line from="merchant.iban" prefix="/" />
+          <line from="merchant.name" maxLength="35" />
+          <line from="merchant.address.country" maxLength="35" />
+        </field>
+        <!-- Beneficiary institution -->
+        <field tag="57A" from="merchant.bankBic" validate="bic" />
+        <!-- Remittance information -->
+        <field tag="70" from="description" maxLength="140" wordWrap="35" />
+        <!-- Charges -->
+        <field tag="71A" value="SHA" />
+      </body>
+    </message>
+  </output>
+
+  <!-- Field transformation functions -->
+  <functions>
+    <function name="swift-reference">
+      <description>Generate SWIFT-compliant transaction reference</description>
+      <steps>
+        <step type="strip-dashes" />
+        <step type="uppercase" />
+        <step type="truncate" maxLength="16" />
+      </steps>
+    </function>
+    <function name="swift-date">
+      <description>Format date as YYMMDD for SWIFT</description>
+      <steps>
+        <step type="format" pattern="yyMMdd" />
+      </steps>
+    </function>
+    <function name="swift-amount">
+      <description>Format amount with comma as decimal separator</description>
+      <steps>
+        <step type="replace" pattern="\\." replacement="," />
+      </steps>
+    </function>
+  </functions>
+
+  <!-- Validation -->
+  <post-processing>
+    <validate type="swift-network-rules" version="2024" failAction="reject" />
+    <checksum algorithm="swift-mac" />
+  </post-processing>
+</transform>

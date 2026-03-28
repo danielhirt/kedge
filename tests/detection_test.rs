@@ -126,3 +126,127 @@ fn detection_pipeline_reports_clean_when_no_changes() {
     assert!(report.drifted.is_empty());
     assert_eq!(report.clean.len(), 1);
 }
+
+#[test]
+fn sig_provenance_detects_drift_without_git_history() {
+    let original_content =
+        "public class AuthService { public boolean validate(String t) { return true; } }";
+
+    // Compute the sig for the original content
+    let sig = steer::detection::fingerprint::compute_sig(
+        original_content,
+        "src/auth/AuthService.java",
+        Some("AuthService#validate"),
+    );
+    assert!(sig.starts_with("sig:"));
+
+    // Create a git repo with MODIFIED content (simulating post-rebase state)
+    let (dir, _sha) = setup_git_repo(
+        "src/auth/AuthService.java",
+        "public class AuthService { public boolean validate(String t, List<String> scopes) { return true; } }",
+    );
+
+    // Steering doc uses sig: provenance from original content
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nsteer:\n  group: test\n  anchors:\n    - repo: \"file://{repo}\"\n      path: src/auth/AuthService.java\n      symbol: AuthService#validate\n      provenance: \"{sig}\"\n---\n\n# Auth docs\n",
+        repo = dir.path().display(),
+        sig = sig,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
+    std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
+
+    let report = steer::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("test"),
+        &format!("file://{}", dir.path().display()),
+        "test-repo",
+    ).unwrap();
+
+    // Should detect drift — content fingerprint changed
+    assert_eq!(report.drifted.len(), 1);
+}
+
+#[test]
+fn sig_provenance_reports_clean_when_content_matches() {
+    let content =
+        "public class AuthService { public boolean validate(String t) { return true; } }";
+
+    let sig = steer::detection::fingerprint::compute_sig(
+        content,
+        "src/auth/AuthService.java",
+        None,
+    );
+
+    let (dir, _sha) = setup_git_repo("src/auth/AuthService.java", content);
+
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nsteer:\n  group: test\n  anchors:\n    - repo: \"file://{repo}\"\n      path: src/auth/AuthService.java\n      provenance: \"{sig}\"\n---\n\n# Auth docs\n",
+        repo = dir.path().display(),
+        sig = sig,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
+    std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
+
+    let report = steer::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("test"),
+        &format!("file://{}", dir.path().display()),
+        "test-repo",
+    ).unwrap();
+
+    assert!(report.drifted.is_empty());
+    assert_eq!(report.clean.len(), 1);
+}
+
+#[test]
+fn sig_provenance_survives_rebase() {
+    let content =
+        "public class AuthService { public boolean validate(String t) { return true; } }";
+
+    // Compute sig from content
+    let sig = steer::detection::fingerprint::compute_sig(
+        content,
+        "src/auth/AuthService.java",
+        None,
+    );
+
+    // Create repo, commit, then rebase (amend) — SHA changes but content stays same
+    let (dir, _original_sha) = setup_git_repo("src/auth/AuthService.java", content);
+
+    // Simulate rebase: amend the commit (SHA changes, content identical)
+    Command::new("git")
+        .args(["commit", "--amend", "-m", "rebased commit"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let new_sha_output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    let new_sha = String::from_utf8(new_sha_output.stdout).unwrap().trim().to_string();
+    assert_ne!(_original_sha, new_sha, "SHA should change after amend");
+
+    // Steering doc uses sig: provenance — immune to SHA change
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nsteer:\n  group: test\n  anchors:\n    - repo: \"file://{repo}\"\n      path: src/auth/AuthService.java\n      provenance: \"{sig}\"\n---\n\n# Auth docs\n",
+        repo = dir.path().display(),
+        sig = sig,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
+    std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
+
+    let report = steer::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("test"),
+        &format!("file://{}", dir.path().display()),
+        "test-repo",
+    ).unwrap();
+
+    // Should be clean — content hasn't changed, even though SHA did
+    assert!(report.drifted.is_empty(), "sig: provenance should survive rebase");
+}

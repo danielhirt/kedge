@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow name="fraud-detection" version="3.0">
+  <trigger event="payment.authorized" />
+
+  <stages>
+    <stage name="velocity-analysis">
+      <rule id="txn-count-1h">
+        <condition field="cardTransactionsLastHour" operator="gt" value="10" />
+        <action type="flag" reason="high-card-velocity-1h" />
+      </rule>
+      <rule id="txn-count-24h">
+        <condition field="cardTransactions24h" operator="gt" value="50" />
+        <action type="flag" reason="high-card-velocity-24h" />
+      </rule>
+      <rule id="distinct-merchants-1h">
+        <condition field="distinctMerchantsLastHour" operator="gt" value="5" />
+        <action type="flag" reason="multiple-merchants-1h" />
+      </rule>
+    </stage>
+
+    <stage name="amount-analysis" requires="velocity-analysis">
+      <rule id="single-txn-threshold">
+        <condition field="amount" operator="gt" value="50000" />
+        <action type="flag" reason="unusually-high-amount" />
+      </rule>
+      <rule id="cumulative-24h">
+        <condition field="cardCumulativeAmount24h" operator="gt" value="100000" />
+        <action type="reject" reason="cumulative-limit-exceeded" />
+      </rule>
+      <rule id="avg-deviation">
+        <condition field="amountDeviationFromAvg" operator="gt" value="3.0" />
+        <action type="flag" reason="amount-outlier" />
+      </rule>
+    </stage>
+
+    <stage name="geo-analysis" requires="velocity-analysis">
+      <rule id="impossible-travel">
+        <condition field="minutesSinceLastTxnDifferentCountry" operator="lt" value="60" />
+        <action type="reject" reason="impossible-travel-detected" />
+      </rule>
+      <rule id="proxy-vpn-detection">
+        <condition field="ipRiskScore" operator="gt" value="80" />
+        <action type="flag" reason="proxy-or-vpn-detected" />
+      </rule>
+    </stage>
+
+    <stage name="ml-scoring" requires="amount-analysis">
+      <rule id="ml-model-threshold">
+        <condition field="mlFraudScore" operator="gt" value="0.85" />
+        <action type="reject" reason="ml-high-risk" />
+      </rule>
+      <rule id="ml-model-review">
+        <condition field="mlFraudScore" operator="gt" value="0.60" />
+        <action type="flag" reason="ml-medium-risk" />
+      </rule>
+    </stage>
+
+    <stage name="manual-review" requires="ml-scoring">
+      <gate type="dual-approval" assignee="fraud-team" />
+      <timeout duration="4h" action="auto-approve" />
+    </stage>
+  </stages>
+</workflow>

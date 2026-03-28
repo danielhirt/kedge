@@ -1,0 +1,31 @@
+[detection]
+languages = ["java", "xml"]
+fallback = "content-hash"
+
+[triage]
+provider = "anthropic"
+model = "claude-haiku-4-5-20251001"
+severity_levels = ["no_update", "minor", "major"]
+
+[remediation]
+agent_command = "kiro --agent drift-updater"
+auto_merge_severities = ["minor"]
+
+[[repos.docs]]
+url = "git@github.com:nexus-corp/platform-docs.git"
+path = "steering/"
+ref = "main"
+
+[[agents]]
+name = "kiro"
+global_steering = "~/.kiro/steering/"
+workspace_steering = ".kiro/steering/"
+agents_file = "AGENTS.md"
+skill_dir = ".kiro/skills/"
+
+[[agents]]
+name = "claude"
+global_steering = "~/.claude/steering/"
+workspace_steering = ".claude/steering/"
+agents_file = "CLAUDE.md"
+skill_dir = ".claude/skills/"

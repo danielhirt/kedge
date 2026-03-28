@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workflow name="account-onboarding" version="1.4">
+  <trigger event="account.created" />
+
+  <stages>
+    <stage name="document-validation">
+      <rule id="kyc-document-present">
+        <condition field="kycDocumentId" operator="neq" value="" />
+        <action type="pass" />
+      </rule>
+      <rule id="business-type-check">
+        <condition field="businessType" operator="in" value="SOLE_PROPRIETOR,LLC,CORPORATION,PARTNERSHIP" />
+        <action type="pass" />
+      </rule>
+      <rule id="prohibited-business">
+        <condition field="mccCode" operator="in" value="7995,5933,5912" />
+        <action type="reject" reason="prohibited-merchant-category" />
+      </rule>
+    </stage>
+
+    <stage name="identity-verification" requires="document-validation">
+      <rule id="sanctions-screening">
+        <condition field="sanctionsListMatch" operator="eq" value="true" />
+        <action type="reject" reason="sanctions-list-match" />
+      </rule>
+      <rule id="pep-check">
+        <condition field="pepMatch" operator="eq" value="true" />
+        <action type="flag" reason="politically-exposed-person" />
+      </rule>
+      <rule id="adverse-media">
+        <condition field="adverseMediaScore" operator="gt" value="70" />
+        <action type="flag" reason="adverse-media-hit" />
+      </rule>
+    </stage>
+
+    <stage name="risk-assessment" requires="identity-verification">
+      <rule id="high-risk-country">
+        <condition field="businessCountry" operator="in" value="AF,IR,KP,SY" />
+        <action type="reject" reason="sanctioned-country" />
+      </rule>
+      <rule id="elevated-risk-country">
+        <condition field="businessCountry" operator="in" value="NG,PK,VE,MM" />
+        <action type="flag" reason="elevated-risk-jurisdiction" />
+      </rule>
+    </stage>
+
+    <stage name="compliance-review" requires="risk-assessment">
+      <gate type="manual-review" assignee="compliance-team" />
+      <timeout duration="72h" action="reject" />
+    </stage>
+
+    <stage name="provisioning" requires="compliance-review">
+      <rule id="tier-assignment">
+        <condition field="expectedMonthlyVolume" operator="gt" value="100000" />
+        <action type="route" reason="enterprise-tier-setup" />
+      </rule>
+    </stage>
+  </stages>
+</workflow>

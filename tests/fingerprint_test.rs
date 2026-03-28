@@ -1,4 +1,4 @@
-use steer::detection::fingerprint::{ast_fingerprint, content_hash, Language};
+use steer::detection::fingerprint::{ast_fingerprint, compute_sig, content_hash, Language, SIG_PREFIX};
 
 #[test]
 fn content_hash_produces_consistent_output() {
@@ -117,4 +117,34 @@ fn xml_fingerprint_detects_structural_changes() {
     );
     let h2 = ast_fingerprint(&modified, Language::Xml, None).unwrap();
     assert_ne!(h1, h2);
+}
+
+#[test]
+fn compute_sig_produces_prefixed_output() {
+    let sig = compute_sig("public class Foo {}", "Foo.java", None);
+    assert!(sig.starts_with(SIG_PREFIX));
+    // sig: + 16 hex chars = 20 chars total
+    assert_eq!(sig.len(), 20);
+}
+
+#[test]
+fn compute_sig_is_consistent() {
+    let s1 = compute_sig("public class Foo {}", "Foo.java", None);
+    let s2 = compute_sig("public class Foo {}", "Foo.java", None);
+    assert_eq!(s1, s2);
+}
+
+#[test]
+fn compute_sig_differs_for_changes() {
+    let s1 = compute_sig("public class Foo {}", "Foo.java", None);
+    let s2 = compute_sig("public class Foo { int x; }", "Foo.java", None);
+    assert_ne!(s1, s2);
+}
+
+#[test]
+fn compute_sig_uses_content_hash_for_unknown_extensions() {
+    let s1 = compute_sig("hello world", "unknown.xyz", None);
+    assert!(s1.starts_with(SIG_PREFIX));
+    let s2 = compute_sig("hello world", "unknown.xyz", None);
+    assert_eq!(s1, s2);
 }
