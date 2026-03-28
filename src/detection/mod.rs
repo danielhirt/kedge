@@ -45,12 +45,10 @@ fn fingerprint(content: &str, path: &str, symbol: Option<&str>) -> String {
 
 /// Run the detection pipeline over a docs directory against a local code repository.
 ///
-/// * `code_repo_path`  – filesystem path to the checked-out code repository.
-/// * `docs_dir`        – directory tree that is scanned for `*.md` files with
-///                       steer frontmatter.
-/// * `code_repo_url`   – the canonical URL (or `file://` path) used to match
-///                       anchor `repo:` fields against this repository.
-/// * `repo_name`       – short name used to populate `DriftReport::repo`.
+/// * `code_repo_path` – filesystem path to the checked-out code repository.
+/// * `docs_dir` – directory tree scanned for `*.md` files with steer frontmatter.
+/// * `code_repo_url` – canonical URL (or `file://` path) to match anchor `repo:` fields.
+/// * `repo_name` – short name used to populate `DriftReport::repo`.
 pub fn detect_drift(
     code_repo_path: &Path,
     docs_dir: impl AsRef<Path>,

@@ -14,6 +14,26 @@ fn extract_mr_url(output: &str) -> Option<String> {
     None
 }
 
+/// Resolve the docs directory path. Prefers STEER_DOCS_PATH env var,
+/// otherwise clones from config's repos.docs via repo_cache.
+fn resolve_docs_path(
+    config: &steer::config::Config,
+    _config_path: &std::path::Path,
+) -> anyhow::Result<std::path::PathBuf> {
+    if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
+        return Ok(std::path::PathBuf::from(p));
+    }
+    let doc_repo = config.repos.docs.first()
+        .context("no docs repo configured in steer.toml")?;
+    let cached = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
+        .with_context(|| format!("failed to clone docs repo {}", doc_repo.url))?;
+    if doc_repo.path.is_empty() {
+        Ok(cached)
+    } else {
+        Ok(cached.join(&doc_repo.path))
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
@@ -102,18 +122,12 @@ skill_dir = ""
                 format!("file://{}", code_repo_path.display())
             });
 
-            // Resolve docs path: STEER_DOCS_PATH env var (for testing/overrides),
-            // otherwise clone from config's repos.docs
             let docs_path = if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
                 std::path::PathBuf::from(p)
             } else {
                 let config = steer::config::Config::from_file(&cli.config)
                     .context("failed to load steer.toml — run `steer init` first")?;
-                let doc_repo = config.repos.docs.first()
-                    .context("no docs repo configured in steer.toml")?;
-                let cached = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
-                    .with_context(|| format!("failed to clone docs repo {}", doc_repo.url))?;
-                if doc_repo.path.is_empty() { cached } else { cached.join(&doc_repo.path) }
+                resolve_docs_path(&config, &cli.config)?
             };
 
             let drift_report = steer::detection::detect_drift(
@@ -155,10 +169,21 @@ skill_dir = ""
             let drift_report: steer::models::DriftReport = serde_json::from_str(&json_input)
                 .context("failed to parse drift report JSON")?;
 
-            // Read doc contents for each drifted doc.
-            let docs_path_str =
-                std::env::var("STEER_DOCS_PATH").unwrap_or_else(|_| "docs".to_string());
-            let docs_path = std::path::PathBuf::from(&docs_path_str);
+            // Resolve docs path for reading doc contents
+            let config = steer::config::Config::from_file(&cli.config).ok();
+            let docs_path = if let Ok(p) = std::env::var("STEER_DOCS_PATH") {
+                std::path::PathBuf::from(p)
+            } else if let Some(ref cfg) = config {
+                if let Some(doc_repo) = cfg.repos.docs.first() {
+                    let cached = steer::install::repo_cache::get_or_clone(&doc_repo.url, &doc_repo.git_ref)
+                        .with_context(|| format!("failed to clone docs repo {}", doc_repo.url))?;
+                    if doc_repo.path.is_empty() { cached } else { cached.join(&doc_repo.path) }
+                } else {
+                    std::path::PathBuf::from("docs")
+                }
+            } else {
+                std::path::PathBuf::from("docs")
+            };
 
             let mut doc_contents: std::collections::HashMap<String, String> =
                 std::collections::HashMap::new();
@@ -178,10 +203,12 @@ skill_dir = ""
                 }
             }
 
-            let provider =
-                std::env::var("STEER_AI_PROVIDER").unwrap_or_else(|_| "anthropic".to_string());
-            let model = std::env::var("STEER_AI_MODEL")
-                .unwrap_or_else(|_| "claude-opus-4-5".to_string());
+            let provider = config.as_ref()
+                .map(|c| c.triage.provider.clone())
+                .unwrap_or_else(|| std::env::var("STEER_AI_PROVIDER").unwrap_or_else(|_| "anthropic".to_string()));
+            let model = config.as_ref()
+                .map(|c| c.triage.model.clone())
+                .unwrap_or_else(|| std::env::var("STEER_AI_MODEL").unwrap_or_else(|_| "claude-haiku-4-5-20251001".to_string()));
 
             let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
             let triaged = rt.block_on(steer::triage::triage_drift_report(
@@ -205,9 +232,8 @@ skill_dir = ""
             let code_repo_url = std::env::var("STEER_CODE_REPO_URL").unwrap_or_else(|_| {
                 format!("file://{}", code_repo_path.display())
             });
-            let docs_path_str =
-                std::env::var("STEER_DOCS_PATH").unwrap_or_else(|_| "docs".to_string());
-            let docs_path = std::path::PathBuf::from(&docs_path_str);
+
+            let docs_path = resolve_docs_path(&config, &cli.config)?;
 
             // 1. Detection
             let drift_report = steer::detection::detect_drift(

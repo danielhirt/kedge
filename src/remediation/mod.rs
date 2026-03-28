@@ -54,9 +54,9 @@ pub fn build_agent_payload(
 /// that only need a provenance sync (all anchors are [`Severity::NoUpdate`]).
 ///
 /// Returns `(to_remediate, to_sync)`.
-pub fn partition_by_action<'a>(
-    report: &'a TriagedReport,
-) -> (Vec<&'a TriagedDoc>, Vec<&'a TriagedDoc>) {
+pub fn partition_by_action(
+    report: &TriagedReport,
+) -> (Vec<&TriagedDoc>, Vec<&TriagedDoc>) {
     let mut to_remediate: Vec<&TriagedDoc> = Vec::new();
     let mut to_sync: Vec<&TriagedDoc> = Vec::new();
 
