@@ -10,7 +10,7 @@ Three-layer pipeline:
 2. **Triage.** Classify each drifted anchor as `no_update`, `minor`, or `major` via a lightweight LLM call.
 3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes.
 
-Steering files are markdown with `kedge:` frontmatter anchoring documentation to specific code locations (files, symbols).
+Any markdown file with `kedge:` frontmatter becomes a tracked doc — standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
 
 ## Installation
 
@@ -118,8 +118,8 @@ skill_dir = ".kiro/skills/"
 
 [[agents]]
 name = "claude"
-global_steering = "~/.claude/steering/"
-workspace_steering = ".claude/steering/"
+global_steering = "~/.claude/docs/"
+workspace_steering = "docs/"
 agents_file = "CLAUDE.md"
 skill_dir = ""
 ```

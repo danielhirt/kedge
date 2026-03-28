@@ -43,8 +43,8 @@ docs = [
 
 [[agents]]
 name = "claude"
-global_steering = "~/.claude/steering"
-workspace_steering = ".claude/steering"
+global_steering = "~/.claude/docs"
+workspace_steering = "docs"
 agents_file = "CLAUDE.md"
 skill_dir = ""
 ```

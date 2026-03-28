@@ -1,6 +1,6 @@
 # Steering File Format
 
-Steering files are markdown documents with YAML frontmatter containing a `kedge:` block. They live in the docs repository and anchor documentation to specific code locations.
+Any markdown document with a `kedge:` block in its YAML frontmatter is a tracked doc. kedge borrows the term "steering file" from Amazon's Kiro agent, but the tool is agent-agnostic -- it works with standalone docs, `AGENTS.md`, `CLAUDE.md`, or any markdown file. These files live in the docs repository and anchor documentation to specific code locations.
 
 ## Structure
 

@@ -62,7 +62,7 @@ kedge-update:
 
 ### Installing steering files in CI
 
-`kedge install --workspace` copies steering files from the docs repo into the workspace agent directories (e.g., `.claude/steering/`, `.kiro/steering/`). This gives the agent access to the steering context when it runs.
+`kedge install --workspace` copies doc files from the docs repo into the workspace agent directories (e.g., `.kiro/steering/` for Kiro, `docs/` for Claude Code). This gives the agent access to the documentation context when it runs.
 
 Use `--group` to scope to a specific team:
 

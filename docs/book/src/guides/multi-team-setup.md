@@ -54,7 +54,7 @@ On a developer machine, install steering files for your team:
 kedge install --link --group payments
 ```
 
-This symlinks files from `payments/` and `shared/` into your local agent steering directory (e.g., `~/.claude/steering/`).
+This symlinks files from `payments/` and `shared/` into your local agent directory (e.g., `~/.kiro/steering/` for Kiro, `~/.claude/docs/` for Claude Code).
 
 In CI, use `--workspace` to copy instead:
 

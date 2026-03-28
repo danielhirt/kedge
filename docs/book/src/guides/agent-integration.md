@@ -187,10 +187,10 @@ skill_dir = ".kiro/skills/"
 
 [[agents]]
 name = "claude"
-global_steering = "~/.claude/steering/"
-workspace_steering = ".claude/steering/"
+global_steering = "~/.claude/docs/"
+workspace_steering = "docs/"
 agents_file = "CLAUDE.md"
 skill_dir = ""
 ```
 
-This configuration is used by `kedge install` only -- it tells kedge where to place steering files so each agent platform can find them. It does not affect how the agent command is invoked.
+This configuration is used by `kedge install` only -- it tells kedge where to place doc files so each agent platform can find them. It does not affect how the agent command is invoked. The paths are platform-specific: Kiro uses `.kiro/steering/`, but Claude Code has no built-in "steering" directory, so use any path the agent can read (e.g., `docs/`).

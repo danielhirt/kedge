@@ -1,6 +1,6 @@
 # Your First Steering File
 
-A steering file is a markdown document in your docs repository that anchors documentation to specific code locations. When the anchored code changes, kedge detects the drift.
+kedge tracks any markdown document that has a `kedge:` block in its YAML frontmatter. The project calls these "steering files" (a term borrowed from Amazon's Kiro agent), but they can be standalone docs, `AGENTS.md`, `CLAUDE.md`, or any other markdown file. When the anchored code changes, kedge detects the drift.
 
 ## Anatomy of a steering file
 
