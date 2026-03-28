@@ -4,6 +4,7 @@
 // - config       : steer.toml parsing and configuration types
 
 pub mod config;
+pub mod frontmatter;
 pub mod models;
 // - models       : shared data types (reports, anchors, payloads)
 // - frontmatter  : YAML frontmatter extraction from markdown
