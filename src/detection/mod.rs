@@ -25,13 +25,14 @@ pub fn detect_drift(
     docs_dir: impl AsRef<Path>,
     code_repo_url: &str,
     repo_name: &str,
+    exclude_dirs: &[String],
 ) -> Result<DriftReport> {
     let docs_dir = docs_dir.as_ref();
     let current_sha = head_sha(code_repo_path)?;
     let canon_repo = code_repo_path
         .canonicalize()
         .unwrap_or_else(|_| code_repo_path.to_path_buf());
-    let docs = scan_docs(docs_dir, code_repo_url, None);
+    let docs = scan_docs(docs_dir, code_repo_url, None, exclude_dirs);
 
     let mut drifted: Vec<DriftedDoc> = Vec::new();
     let mut clean: Vec<CleanDoc> = Vec::new();

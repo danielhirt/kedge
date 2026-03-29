@@ -72,11 +72,18 @@ pub fn parse_doc_file(path: &Path, doc_repo: &str) -> Option<DocFile> {
 /// Scan a directory recursively for `.md` files with kedge frontmatter.
 ///
 /// If `group_filter` is `Some`, only docs whose `kedge.group` matches the filter are returned.
-pub fn scan_docs(dir: &Path, doc_repo: &str, group_filter: Option<&str>) -> Vec<DocFile> {
+/// Paths containing any directory segment matching an entry in `exclude_dirs` are skipped.
+pub fn scan_docs(
+    dir: &Path,
+    doc_repo: &str,
+    group_filter: Option<&str>,
+    exclude_dirs: &[String],
+) -> Vec<DocFile> {
     let pattern = format!("{}/**/*.md", dir.to_string_lossy());
     let paths = glob::glob(&pattern).into_iter().flatten().flatten();
 
     paths
+        .filter(|path| !should_exclude(path, exclude_dirs))
         .filter_map(|path| parse_doc_file(&path, doc_repo))
         .filter(|doc| {
             if let Some(filter) = group_filter {
@@ -86,6 +93,17 @@ pub fn scan_docs(dir: &Path, doc_repo: &str, group_filter: Option<&str>) -> Vec<
             }
         })
         .collect()
+}
+
+fn should_exclude(path: &Path, exclude_dirs: &[String]) -> bool {
+    path.components().any(|c| {
+        if let std::path::Component::Normal(name) = c {
+            if let Some(name_str) = name.to_str() {
+                return exclude_dirs.iter().any(|excl| excl == name_str);
+            }
+        }
+        false
+    })
 }
 
 /// Update the provenance for a specific anchor in a markdown file.

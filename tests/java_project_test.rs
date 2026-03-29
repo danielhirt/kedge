@@ -96,7 +96,7 @@ fn rewrite_repo_urls(dir: &Path, old_url: &str, new_url: &str) {
 /// Stamp real sigs on all docs in the docs dir using the code repo.
 fn stamp_docs(code_repo: &Path, docs_dir: &Path) {
     let code_url = format!("file://{}", code_repo.display());
-    let docs = kedge::frontmatter::scan_docs(docs_dir, &code_url, None);
+    let docs = kedge::frontmatter::scan_docs(docs_dir, &code_url, None, &[]);
 
     for doc in &docs {
         let doc_path = docs_dir.join(&doc.path);
@@ -137,6 +137,7 @@ fn java_project_clean_after_stamping() {
         docs_dir.path(),
         &code_url,
         "nexus-platform",
+        &[],
     )
     .unwrap();
 
@@ -185,6 +186,7 @@ fn java_project_detects_drift_after_code_change() {
         docs_dir.path(),
         &code_url,
         "nexus-platform",
+        &[],
     )
     .unwrap();
 
@@ -237,6 +239,7 @@ fn java_project_non_anchored_change_stays_clean() {
         docs_dir.path(),
         &code_url,
         "nexus-platform",
+        &[],
     )
     .unwrap();
 
