@@ -220,3 +220,57 @@ kedge:
         updated
     );
 }
+
+#[test]
+fn scan_docs_excludes_directories() {
+    let dir = tempfile::tempdir().unwrap();
+
+    // Create a regular doc
+    let doc_dir = dir.path().join("docs");
+    std::fs::create_dir_all(&doc_dir).unwrap();
+    std::fs::write(
+        doc_dir.join("good.md"),
+        "---\nkedge:\n  anchors:\n    - repo: git@example.com:r.git\n      path: src/main.rs\n      provenance: sig:abcdef1234567890\n---\n# Good",
+    )
+    .unwrap();
+
+    // Create a doc inside node_modules (should be excluded)
+    let nm_dir = dir.path().join("node_modules").join("pkg");
+    std::fs::create_dir_all(&nm_dir).unwrap();
+    std::fs::write(
+        nm_dir.join("bad.md"),
+        "---\nkedge:\n  anchors:\n    - repo: git@example.com:r.git\n      path: src/lib.rs\n      provenance: sig:1234567890abcdef\n---\n# Bad",
+    )
+    .unwrap();
+
+    // Create a doc inside .git (should be excluded)
+    let git_dir = dir.path().join(".git").join("hooks");
+    std::fs::create_dir_all(&git_dir).unwrap();
+    std::fs::write(
+        git_dir.join("readme.md"),
+        "---\nkedge:\n  anchors:\n    - repo: git@example.com:r.git\n      path: src/foo.rs\n      provenance: sig:deadbeefcafebabe\n---\n# Git",
+    )
+    .unwrap();
+
+    let exclude = vec!["node_modules".into(), ".git".into()];
+    let docs = kedge::frontmatter::scan_docs(dir.path(), "git@example.com:r.git", None, &exclude);
+
+    assert_eq!(docs.len(), 1);
+    assert!(docs[0].path.contains("good.md"));
+}
+
+#[test]
+fn scan_docs_with_empty_exclusions_finds_all() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let nm_dir = dir.path().join("node_modules");
+    std::fs::create_dir_all(&nm_dir).unwrap();
+    std::fs::write(
+        nm_dir.join("doc.md"),
+        "---\nkedge:\n  anchors:\n    - repo: git@example.com:r.git\n      path: src/main.rs\n      provenance: sig:abcdef1234567890\n---\n# Doc",
+    )
+    .unwrap();
+
+    let docs = kedge::frontmatter::scan_docs(dir.path(), "git@example.com:r.git", None, &[]);
+    assert_eq!(docs.len(), 1);
+}

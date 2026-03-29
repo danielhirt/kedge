@@ -128,6 +128,7 @@ fn detection_pipeline_finds_drift_when_code_changed() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     )
     .unwrap();
 
@@ -160,6 +161,7 @@ fn detection_pipeline_reports_clean_when_no_changes() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     )
     .unwrap();
 
@@ -201,6 +203,7 @@ fn sig_provenance_detects_drift_without_git_history() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     )
     .unwrap();
 
@@ -231,6 +234,7 @@ fn sig_provenance_reports_clean_when_content_matches() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     )
     .unwrap();
 
@@ -282,6 +286,7 @@ fn sig_provenance_survives_rebase() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     )
     .unwrap();
 
@@ -312,6 +317,7 @@ fn detect_drift_rejects_anchor_with_path_traversal() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     );
 
     assert!(result.is_err());
@@ -342,6 +348,7 @@ fn detect_drift_rejects_invalid_provenance_format() {
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
         "test-repo",
+        &[],
     );
 
     assert!(result.is_err());

@@ -18,10 +18,34 @@ pub struct DetectionConfig {
     pub languages: Vec<String>,
     #[serde(default = "default_fallback")]
     pub fallback: String,
+    #[serde(default = "default_exclude_dirs")]
+    pub exclude_dirs: Vec<String>,
+}
+
+impl Default for DetectionConfig {
+    fn default() -> Self {
+        Self {
+            languages: vec![],
+            fallback: default_fallback(),
+            exclude_dirs: default_exclude_dirs(),
+        }
+    }
 }
 
 fn default_fallback() -> String {
     "content-hash".to_string()
+}
+
+fn default_exclude_dirs() -> Vec<String> {
+    vec![
+        ".git".into(),
+        "node_modules".into(),
+        "target".into(),
+        ".venv".into(),
+        "__pycache__".into(),
+        ".tox".into(),
+        "vendor".into(),
+    ]
 }
 
 #[derive(Debug, Deserialize)]

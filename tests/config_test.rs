@@ -211,3 +211,48 @@ languages = ["java"]
     let result: Result<Config, _> = toml::from_str(toml);
     assert!(result.is_err());
 }
+
+#[test]
+fn detection_config_has_default_exclude_dirs() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert!(config.detection.exclude_dirs.contains(&".git".to_string()));
+    assert!(config
+        .detection
+        .exclude_dirs
+        .contains(&"node_modules".to_string()));
+    assert!(config
+        .detection
+        .exclude_dirs
+        .contains(&"target".to_string()));
+}
+
+#[test]
+fn detection_config_accepts_custom_exclude_dirs() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+exclude_dirs = ["custom_dir", "another"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.detection.exclude_dirs, vec!["custom_dir", "another"]);
+}

@@ -200,16 +200,25 @@ skill_dir = ""
             let rn = repo_name(&code_repo_path);
             let cru = code_repo_url(&code_repo_path);
 
-            let docs_path = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
-                std::path::PathBuf::from(p)
+            let (docs_path, exclude_dirs) = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+                let exclude = kedge::config::Config::from_file(&cli.config)
+                    .map(|c| c.detection.exclude_dirs)
+                    .unwrap_or_else(|_| kedge::config::DetectionConfig::default().exclude_dirs);
+                (std::path::PathBuf::from(p), exclude)
             } else {
                 let config = kedge::config::Config::from_file(&cli.config)
                     .context("failed to load kedge.toml — run `kedge init` first")?;
-                resolve_docs_path(&config)?
+                let exclude = config.detection.exclude_dirs.clone();
+                (resolve_docs_path(&config)?, exclude)
             };
 
-            let drift_report =
-                kedge::detection::detect_drift(&code_repo_path, &docs_path, &cru, &rn)?;
+            let drift_report = kedge::detection::detect_drift(
+                &code_repo_path,
+                &docs_path,
+                &cru,
+                &rn,
+                &exclude_dirs,
+            )?;
 
             let json = serde_json::to_string_pretty(&drift_report)?;
 
@@ -267,8 +276,13 @@ skill_dir = ""
 
             let docs_path = resolve_docs_path(&config)?;
 
-            let drift_report =
-                kedge::detection::detect_drift(&code_repo_path, &docs_path, &cru, &rn)?;
+            let drift_report = kedge::detection::detect_drift(
+                &code_repo_path,
+                &docs_path,
+                &cru,
+                &rn,
+                &config.detection.exclude_dirs,
+            )?;
 
             if let Some(path) = &report {
                 let json = serde_json::to_string_pretty(&drift_report)?;
@@ -429,7 +443,8 @@ skill_dir = ""
             let cwd = std::env::current_dir()?;
             let cru = code_repo_url(&cwd);
 
-            let docs = kedge::frontmatter::scan_docs(&docs_path, &cru, None);
+            let exclude_dirs = kedge::config::DetectionConfig::default().exclude_dirs;
+            let docs = kedge::frontmatter::scan_docs(&docs_path, &cru, None, &exclude_dirs);
 
             if docs.is_empty() {
                 println!(
