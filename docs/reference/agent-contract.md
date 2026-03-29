@@ -41,7 +41,7 @@ When `batch = false` (the default), kedge invokes the agent once per drifted doc
       "diff": "--- a/src/auth/AuthService.java\n+++ b/src/auth/AuthService.java\n@@ -42,7 +42,8 @@..."
     }
   ],
-  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync <file>` on each modified steering file to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync` to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
 }
 ```
 
@@ -92,7 +92,7 @@ When `batch = true`, kedge sends all drifted docs in a single invocation.
       "drifted_anchors": [...]
     }
   ],
-  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync <file>` on each modified steering file to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync` to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
 }
 ```
 
@@ -160,12 +160,12 @@ After updating a steering file's prose, the agent must advance the `provenance` 
 
 ### Recommended: `kedge sync`
 
-The simplest and most reliable approach is to run `kedge sync <file>` on each modified steering file after editing. This recomputes the fingerprints from the current code and stamps them into the frontmatter deterministically — the agent only needs to focus on updating prose.
+The simplest and most reliable approach is to run `kedge sync` after editing. With no arguments, it finds all `.md` files with kedge frontmatter and recomputes their fingerprints from the current code. The agent only needs to focus on updating prose.
 
 ```bash
 # 1. Update the doc prose
-# 2. Advance provenance
-kedge sync steering/auth-validation.md
+# 2. Advance provenance for all steering files
+kedge sync
 # 3. Commit, push, open MR
 ```
 
@@ -188,4 +188,4 @@ The agent process must exit with code `0` on success. kedge treats a non-zero ex
 
 ## `no_update` anchors
 
-kedge does **not** send anchors classified as `no_update` to the agent. Instead, kedge advances their provenance by recomputing the fingerprint and writing it to the steering file. This avoids unnecessary agent invocations for cosmetic code changes.
+kedge does **not** send anchors classified as `no_update` to the agent. By default, kedge advances their provenance by recomputing the fingerprint and writing it to the steering file. Pass `--no-stamp` to `kedge update` to skip the write. Use this in CI when docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance in a dedicated commit.

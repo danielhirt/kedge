@@ -79,9 +79,13 @@ kedge sync
 
 ### Automatic advancement during `kedge update`
 
-During the full pipeline, kedge automatically advances provenance for anchors triaged as `no_update` without invoking the agent. kedge logs these in the `provenance_advanced` field of the `RemediationSummary`.
+By default, `kedge update` advances provenance for anchors triaged as `no_update` by recomputing the fingerprint and writing it to the steering file. kedge logs these in the `provenance_advanced` field of the `RemediationSummary`.
+
+Pass `--no-stamp` to skip this step. The summary still lists which docs had `no_update` anchors (with `anchors_synced: 0`), but kedge does not modify the files. Use `--no-stamp` in CI when docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance in a single commit.
 
 ## Provenance lifecycle
+
+### Local workflow
 
 ```
 1. Create steering file with empty provenance
@@ -101,4 +105,20 @@ During the full pipeline, kedge automatically advances provenance for anchors tr
        │
        ▼
 5. Back to step 3
+```
+
+### CI workflow (two-repo)
+
+```
+1. kedge update --no-stamp
+       │
+       ├─ minor/major docs → agent opens MRs
+       │
+       └─ no_update docs → listed in summary, files untouched
+       │
+       ▼
+2. Agent MRs merge through normal review
+       │
+       ▼
+3. kedge sync → advance provenance for all docs, commit to docs repo
 ```

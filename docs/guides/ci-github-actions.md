@@ -34,7 +34,7 @@ jobs:
 
 ## Full pipeline on schedule
 
-Run detect-triage-remediate on a cron schedule:
+Run detect-triage-remediate on a cron schedule. Use `--no-stamp` because docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance.
 
 ```yaml
 name: Documentation Remediation
@@ -56,11 +56,13 @@ jobs:
       - name: Install steering files
         run: kedge install --workspace
       - name: Run full pipeline
-        run: kedge update
+        run: kedge update --no-stamp
         env:
           KEDGE_CODE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
+
+After agent MRs merge, run `kedge sync` in the docs repo to advance provenance for `no_update` anchors and commit the result.
 
 ## PR status check
 

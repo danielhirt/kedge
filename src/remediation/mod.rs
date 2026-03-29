@@ -21,7 +21,7 @@ fn drifted_agent_anchors(doc: &TriagedDoc) -> Vec<AgentAnchor> {
         .collect()
 }
 
-const DEFAULT_INSTRUCTIONS: &str = "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync <file>` on each modified steering file to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback.";
+const DEFAULT_INSTRUCTIONS: &str = "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync` to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback.";
 
 pub fn build_agent_payload(
     doc: &TriagedDoc,

@@ -16,7 +16,7 @@ Three-layer pipeline:
 
 1. **Detection.** Compare AST fingerprints of code at provenance vs HEAD. Deterministic, no AI. Outputs a drift report.
 2. **Triage.** Classify each drifted anchor as `no_update`, `minor`, or `major` via a lightweight LLM call.
-3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes. kedge's pipeline ends when the agent returns. MR approval, CI, and merging are handled by your existing review workflows.
+3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes (pass `--no-stamp` in CI to defer this to `kedge sync`). kedge's pipeline ends when the agent returns. MR approval, CI, and merging are handled by your existing review workflows.
 
 Any markdown file with `kedge:` frontmatter becomes a tracked doc: standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
 
@@ -205,7 +205,7 @@ kedge-update:
   stage: docs
   script:
     - kedge install --workspace --group $KEDGE_GROUP
-    - kedge update
+    - kedge update --no-stamp
   variables:
     KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
@@ -213,6 +213,8 @@ kedge-update:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: always
 ```
+
+`--no-stamp` skips provenance writes for `no_update` anchors. Run `kedge sync` in the docs repo after agent MRs merge to advance provenance in a single commit.
 
 ### GitHub Actions
 
@@ -232,7 +234,7 @@ jobs:
       - name: Install kedge
         run: cargo install --path .
       - name: Run drift detection and remediation
-        run: kedge update
+        run: kedge update --no-stamp
         env:
           KEDGE_CODE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -343,7 +345,7 @@ kedge has two independent workflows:
 | `kedge init` | Create a default `kedge.toml` in the current directory |
 | `kedge check [--report <file>]` | Detect drift and output a report (exit 1 if drift found) |
 | `kedge triage [--report <file>]` | Classify drift severity via AI (reads from stdin or file) |
-| `kedge update [--report <file>]` | Full pipeline: detect, triage, invoke agent, open MR |
+| `kedge update [--report <file>] [--no-stamp]` | Full pipeline: detect, triage, invoke agent, open MR |
 | `kedge status` | Show all anchors and their current state |
 | `kedge link [files...]` | Stamp content-addressed provenance on doc anchors |
 | `kedge sync [files...]` | Advance provenance without changing doc content |

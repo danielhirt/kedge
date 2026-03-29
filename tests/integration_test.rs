@@ -366,3 +366,194 @@ fn status_with_no_docs_shows_message() {
         .success()
         .stdout(predicate::str::contains("No docs with kedge frontmatter"));
 }
+
+// ---------------------------------------------------------------------------
+// kedge update --no-stamp
+// ---------------------------------------------------------------------------
+
+/// Creates a code repo with drift and a docs dir with a steering file.
+/// Returns (code_dir, docs_dir, original_provenance_sha).
+fn setup_drifted_code_and_docs() -> (TempDir, TempDir, String) {
+    let (code_dir, docs_dir) = setup_code_and_docs();
+    let code_path = code_dir.path();
+
+    // Modify code to create drift
+    std::fs::write(
+        code_path.join("src/auth/Auth.java"),
+        "public class Auth { public boolean check(String t, List<String> scopes) { return true; } }",
+    )
+    .unwrap();
+    git_commit(code_path, "add scopes param");
+
+    // Read back the original provenance from the steering file
+    let doc_content = std::fs::read_to_string(docs_dir.path().join("auth.md")).unwrap();
+    let prov = doc_content
+        .lines()
+        .find(|l| l.contains("provenance:"))
+        .unwrap()
+        .split("provenance:")
+        .nth(1)
+        .unwrap()
+        .trim()
+        .to_string();
+
+    write_config(code_path);
+
+    (code_dir, docs_dir, prov)
+}
+
+#[test]
+fn update_default_stamps_provenance() {
+    let (code_dir, docs_dir, original_prov) = setup_drifted_code_and_docs();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update"])
+        .current_dir(code_dir.path())
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "kedge update failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    // Provenance should have been stamped with a sig: value
+    let doc_after = std::fs::read_to_string(docs_dir.path().join("auth.md")).unwrap();
+    assert!(
+        doc_after.contains("sig:"),
+        "provenance should be stamped with sig:, got: {}",
+        doc_after
+    );
+    assert!(
+        !doc_after.contains(&original_prov),
+        "original provenance should be replaced"
+    );
+
+    // Summary should report anchors_synced >= 1
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("\"anchors_synced\": 1"),
+        "summary should report 1 anchor synced, got: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("did not affect documentation accuracy"),
+        "reason should indicate no_update stamp, got: {}",
+        stdout
+    );
+}
+
+#[test]
+fn update_no_stamp_skips_provenance_write() {
+    let (code_dir, docs_dir, original_prov) = setup_drifted_code_and_docs();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update", "--no-stamp"])
+        .current_dir(code_dir.path())
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "kedge update --no-stamp failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    // Provenance should NOT have been updated — still the original SHA
+    let doc_after = std::fs::read_to_string(docs_dir.path().join("auth.md")).unwrap();
+    assert!(
+        doc_after.contains(&original_prov),
+        "provenance should be unchanged with --no-stamp, got: {}",
+        doc_after
+    );
+    assert!(
+        !doc_after.contains("sig:"),
+        "no sig: should be stamped with --no-stamp, got: {}",
+        doc_after
+    );
+}
+
+#[test]
+fn update_no_stamp_summary_reports_deferred_docs() {
+    let (code_dir, docs_dir, _) = setup_drifted_code_and_docs();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update", "--no-stamp"])
+        .current_dir(code_dir.path())
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // provenance_advanced should still list the doc
+    assert!(
+        stdout.contains("\"provenance_advanced\""),
+        "summary should include provenance_advanced, got: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("auth.md"),
+        "deferred doc should appear in summary, got: {}",
+        stdout
+    );
+
+    // anchors_synced should be 0
+    assert!(
+        stdout.contains("\"anchors_synced\": 0"),
+        "anchors_synced should be 0 with --no-stamp, got: {}",
+        stdout
+    );
+
+    // reason should mention not stamped
+    assert!(
+        stdout.contains("not stamped"),
+        "reason should mention 'not stamped', got: {}",
+        stdout
+    );
+}
+
+#[test]
+fn update_no_stamp_does_not_affect_agent_invocation() {
+    let (code_dir, docs_dir) = setup_code_and_docs();
+    let code_path = code_dir.path();
+
+    // Modify code to create drift
+    std::fs::write(
+        code_path.join("src/auth/Auth.java"),
+        "public class Auth { public boolean check(String t, List<String> scopes) { return true; } }",
+    )
+    .unwrap();
+    git_commit(code_path, "add scopes param");
+
+    // Triage returns minor severity so the doc goes to the agent path
+    let config = format!(
+        "[detection]\nlanguages = [\"java\"]\n\n[triage]\nprovider = \"command\"\ntriage_command = \"echo '[{{\\\"path\\\": \\\"src/auth/Auth.java\\\", \\\"severity\\\": \\\"minor\\\"}}]'\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        code = code_path.display(),
+    );
+    std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update", "--no-stamp"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "kedge update --no-stamp failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Agent should have been invoked for the minor-severity doc
+    assert!(
+        stdout.contains("\"remediated\""),
+        "summary should include remediated section, got: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("auth.md"),
+        "remediated doc should appear in summary, got: {}",
+        stdout
+    );
+}

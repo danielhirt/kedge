@@ -129,20 +129,27 @@ Reads a `DriftReport` from a file (`--report`) or stdin. Sends each drifted doc 
 
 The doc-level `severity` is the maximum of its anchor severities.
 
-## `kedge update [--report <file>]`
+## `kedge update [--report <file>] [--no-stamp]`
 
 Run the full three-layer pipeline: detection, triage, and remediation.
 
 ```bash
-kedge update
-kedge update --report drift.json   # also save the drift report
+kedge update                         # local workflow — stamps provenance for no_update anchors
+kedge update --no-stamp              # CI workflow — skips provenance stamping
+kedge update --report drift.json     # also save the drift report
 ```
 
 **Pipeline steps:**
 
 1. **Detection**: scans steering files and computes drift
 2. **Triage**: classifies each drifted anchor via the AI provider
-3. **Remediation**: for docs with `minor` or `major` anchors, invokes the agent command; for docs where all anchors are `no_update`, advances provenance
+3. **Remediation**: for docs with `minor` or `major` anchors, invokes the agent command; for docs where all anchors are `no_update`, stamps provenance (unless `--no-stamp`)
+
+### `--no-stamp`
+
+Skips provenance stamping for `no_update` anchors. The summary still lists them in `provenance_advanced` (with `anchors_synced: 0`) so downstream tooling can identify docs that need `kedge sync` later.
+
+Use in CI when docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance in a single commit.
 
 **Output:** A `RemediationSummary` JSON object:
 
@@ -167,6 +174,8 @@ kedge update --report drift.json   # also save the drift report
   "errors": []
 }
 ```
+
+With `--no-stamp`, `provenance_advanced` entries have `anchors_synced: 0` and the reason `"no_update — provenance not stamped (use kedge sync to advance)"`.
 
 `mr_url` is the merge request URL returned by the agent. `auto_merged` reflects the `auto_merge` signal sent to the agent based on severity config. kedge does not monitor or act on MRs after this point.
 

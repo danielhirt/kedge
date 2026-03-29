@@ -321,7 +321,7 @@ skill_dir = ""
 
             println!("{}", serde_json::to_string_pretty(&triaged)?);
         }
-        Command::Update { report } => {
+        Command::Update { report, no_stamp } => {
             let config = kedge::config::Config::from_file(&cli.config)
                 .context("failed to load kedge.toml — run `kedge init` first")?;
 
@@ -483,6 +483,14 @@ skill_dir = ""
             let provenance_advanced: Vec<kedge::models::ProvenanceSynced> = to_sync
                 .iter()
                 .map(|doc| {
+                    if no_stamp {
+                        return kedge::models::ProvenanceSynced {
+                            doc: doc.doc.clone(),
+                            anchors_synced: 0,
+                            reason: "no_update — provenance not stamped (use kedge sync to advance)"
+                                .to_string(),
+                        };
+                    }
                     let doc_file = std::path::PathBuf::from(&doc.doc);
                     let anchors: Vec<kedge::models::Anchor> = doc
                         .anchors

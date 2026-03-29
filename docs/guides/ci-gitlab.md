@@ -36,7 +36,7 @@ Either way, the provenance is updated and the next pipeline run will pass.
 
 ## Scheduled pipeline: full remediation
 
-Run the complete detect-triage-remediate pipeline on a schedule (e.g., nightly or weekly):
+Run the complete detect-triage-remediate pipeline on a schedule (e.g., nightly or weekly). Use `--no-stamp` because docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance.
 
 ```yaml
 kedge-update:
@@ -44,7 +44,7 @@ kedge-update:
   image: danielhirt/kedge:latest
   script:
     - kedge install --workspace --group $KEDGE_GROUP
-    - kedge update
+    - kedge update --no-stamp
   variables:
     KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
@@ -53,11 +53,13 @@ kedge-update:
       when: always
 ```
 
+After agent MRs merge, run `kedge sync` in the docs repo to advance provenance for `no_update` anchors and commit the result.
+
 ### What `kedge update` does
 
 1. **Detection** scans all steering files and identifies drifted anchors.
 2. **Triage** sends each drifted doc to the AI provider for severity classification.
-3. **Remediation** invokes the agent command for `minor` and `major` docs and advances provenance for `no_update` docs.
+3. **Remediation** invokes the agent command for `minor` and `major` docs. For `no_update` docs, stamps provenance locally (or skips with `--no-stamp`).
 4. Outputs a `RemediationSummary` JSON with MR URLs, synced provenance, and any errors
 
 ### Installing steering files in CI
@@ -115,7 +117,7 @@ kedge-update:
   image: danielhirt/kedge:latest
   script:
     - kedge install --workspace
-    - kedge update
+    - kedge update --no-stamp
   variables:
     KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY

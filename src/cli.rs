@@ -46,6 +46,10 @@ pub enum Command {
         /// Save drift report to file
         #[arg(long)]
         report: Option<PathBuf>,
+
+        /// Skip provenance stamping for no_update anchors (use `kedge sync` later)
+        #[arg(long)]
+        no_stamp: bool,
     },
 
     /// Show all anchors and their current drift state

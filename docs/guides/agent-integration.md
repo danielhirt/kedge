@@ -55,7 +55,7 @@ kedge invokes the agent once per drifted doc. The JSON payload sent on stdin:
       "diff": "--- a/src/auth/AuthService.java\n+++ b/src/auth/AuthService.java\n..."
     }
   ],
-  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync <file>` on each modified steering file to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync` to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
 }
 ```
 
@@ -87,7 +87,7 @@ When `batch = true` in config, kedge sends all drifted docs in a single invocati
       "drifted_anchors": [...]
     }
   ],
-  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync <file>` on each modified steering file to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating the prose, run `kedge sync` to advance provenance automatically. If kedge is not available in your environment, set each anchor's provenance in the frontmatter to the corresponding current_sig value as a fallback."
 }
 ```
 
@@ -171,7 +171,7 @@ severity=$(echo "$payload" | jq -r '.severity')
 # ...
 
 # 2. Advance provenance via kedge sync (recommended)
-kedge sync "$doc_path"
+kedge sync
 
 # 3. Commit, push, create MR
 # ...
@@ -186,7 +186,7 @@ The agent's stderr is inherited and shown in the kedge output, so you can use it
 
 After updating a steering file, the agent must advance the `provenance` values in its `kedge:` frontmatter so kedge treats the doc as current.
 
-**Recommended: `kedge sync`** — Run `kedge sync <file>` after editing the doc. This recomputes fingerprints from the current code and stamps them into the frontmatter deterministically. The agent focuses on prose; kedge handles the bookkeeping. Requires `kedge` in the agent's environment and access to the code repo.
+**Recommended: `kedge sync`** — Run `kedge sync` after editing. With no arguments, it finds all `.md` files with kedge frontmatter and recomputes their fingerprints from the current code. The agent focuses on prose; kedge handles the bookkeeping. Requires `kedge` in the agent's environment and access to the code repo.
 
 **Fallback: manual `current_sig`** — If `kedge` is unavailable, the agent can write each anchor's `current_sig` from the payload directly into the frontmatter `provenance` field. This works without a kedge dependency but is more error-prone. To use this approach, set custom instructions in `kedge.toml`:
 
