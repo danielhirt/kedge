@@ -319,3 +319,55 @@ fn java_project_install_filters_by_security_group() {
     // Should NOT have payments docs
     assert!(!target.path().join("payment-service.md").exists());
 }
+
+#[test]
+fn install_from_subdirectory_finds_steering_files() {
+    // Simulate a docs repo where steering files live under a subdirectory,
+    // matching the [[repos.docs]] path = "steering" config pattern.
+    let repo_root = TempDir::new().unwrap();
+    let steering_dir = repo_root.path().join("steering");
+
+    // Copy the java-project-docs fixture into the steering/ subdirectory
+    std::fs::create_dir_all(&steering_dir).unwrap();
+    copy_dir_recursive(&fixture_path("java-project-docs/steering"), &steering_dir);
+
+    let target = TempDir::new().unwrap();
+
+    // Install from the subdirectory (not the repo root)
+    kedge::install::install_to_workspace(
+        &steering_dir,
+        target.path(),
+        Some("payments-platform"),
+        Some("AGENTS.md"),
+        None,
+        false,
+    )
+    .unwrap();
+
+    // Should find files within the subdirectory
+    assert!(
+        target.path().join("payment-service.md").exists(),
+        "install from subdirectory should find group files"
+    );
+    assert!(
+        target.path().join("coding-standards.md").exists(),
+        "install from subdirectory should find shared files"
+    );
+
+    // Installing from repo root should NOT find them (they're nested)
+    let target2 = TempDir::new().unwrap();
+    kedge::install::install_to_workspace(
+        repo_root.path(),
+        target2.path(),
+        Some("payments-platform"),
+        None,
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(
+        !target2.path().join("payment-service.md").exists(),
+        "install from repo root should NOT find files nested in steering/"
+    );
+}

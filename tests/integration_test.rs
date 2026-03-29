@@ -849,3 +849,56 @@ fn update_exits_zero_when_agent_succeeds() {
     let errors = summary["errors"].as_array().unwrap();
     assert!(errors.is_empty(), "errors array should be empty on success");
 }
+
+#[test]
+fn triage_rejects_path_traversal_in_drift_report() {
+    let dir = TempDir::new().unwrap();
+
+    // Create a secret file outside the docs root
+    let secret_file = dir.path().join("secret.txt");
+    std::fs::write(&secret_file, "TOP SECRET CONTENT").unwrap();
+
+    // Create a docs subdirectory as the docs root
+    let docs_root = dir.path().join("docs");
+    std::fs::create_dir_all(&docs_root).unwrap();
+
+    // Crafted drift report with path traversal in drifted[].doc
+    let report = r#"{"repo":"test","ref":"main","commit":"abc123","drifted":[{"doc":"../secret.txt","doc_repo":"git@example.com:docs.git","anchors":[{"path":"src/Auth.java","symbol":"Auth#validate","provenance":"old1","current_sig":"sig:1111111111111111","current_commit":"abc123","diff_summary":"Changed","diff":"+change"}]}],"clean":[]}"#;
+    let report_path = dir.path().join("drift.json");
+    std::fs::write(&report_path, report).unwrap();
+
+    // provider = "none" skips the actual triage call; we're testing that
+    // collect_doc_contents rejects the traversal path before triage runs.
+    let config = "[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"echo done\"\n\n[[repos.docs]]\nurl = \"file:///tmp/dummy\"\npath = \"\"\nref = \"main\"\n";
+    std::fs::write(dir.path().join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "triage", "--report"])
+        .arg(&report_path)
+        .current_dir(dir.path())
+        .env("KEDGE_DOCS_PATH", &docs_root)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "kedge triage should succeed even with traversal path: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Stderr should warn about the skipped path
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("outside") || stderr.contains("skipping"),
+        "should warn about path traversal, got stderr: {}",
+        stderr
+    );
+
+    // The triage output must not contain the secret content
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("TOP SECRET"),
+        "path traversal must not leak file contents into triage output"
+    );
+}

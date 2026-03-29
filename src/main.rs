@@ -189,6 +189,13 @@ fn collect_doc_contents(
     for drifted_doc in &report.drifted {
         for root in repo_roots {
             let doc_path = root.join(&drifted_doc.doc);
+            if kedge::safety::validate_path_within(root, &doc_path).is_err() {
+                eprintln!(
+                    "warning: skipping doc with path outside repo root: {}",
+                    drifted_doc.doc
+                );
+                break;
+            }
             if let Ok(content) = std::fs::read_to_string(&doc_path) {
                 contents.insert(drifted_doc.doc.clone(), content);
                 break;
@@ -202,6 +209,9 @@ fn collect_doc_contents(
 fn resolve_doc_file(relative: &str, repo_roots: &[&std::path::Path]) -> Option<std::path::PathBuf> {
     repo_roots.iter().find_map(|root| {
         let full = root.join(relative);
+        if kedge::safety::validate_path_within(root, &full).is_err() {
+            return None;
+        }
         full.exists().then_some(full)
     })
 }
@@ -694,7 +704,7 @@ skill_dir = ".claude/skills/"
                     }
                 }
 
-                let source_dir = kedge::install::repo_cache::get_or_clone(
+                let cached = kedge::install::repo_cache::get_or_clone(
                     &doc_repo.url,
                     &doc_repo.git_ref,
                     config.repos.git_timeout,
@@ -706,6 +716,15 @@ skill_dir = ".claude/skills/"
                         kedge::safety::sanitize_url(&doc_repo.url)
                     )
                 })?;
+
+                let source_dir = if doc_repo.path.is_empty() {
+                    cached
+                } else {
+                    let p = cached.join(&doc_repo.path);
+                    kedge::safety::validate_path_within(&cached, &p)
+                        .context("docs repo path escapes cache directory")?;
+                    p
+                };
 
                 for platform in &platforms {
                     let target_dir = if use_workspace {
