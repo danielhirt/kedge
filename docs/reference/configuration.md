@@ -42,7 +42,7 @@ name = "claude"
 global_steering = "~/.claude/docs/"
 workspace_steering = "docs/"
 agents_file = "CLAUDE.md"
-skill_dir = ""
+skill_dir = ".claude/skills/"
 ```
 
 ## `[detection]`

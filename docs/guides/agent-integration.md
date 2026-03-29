@@ -212,7 +212,7 @@ name = "claude"
 global_steering = "~/.claude/docs/"
 workspace_steering = "docs/"
 agents_file = "CLAUDE.md"
-skill_dir = ""
+skill_dir = ".claude/skills/"
 ```
 
 `kedge install` places doc files where each agent platform reads them. The `[[agents]]` config does not affect how the agent command is invoked during remediation — that's controlled by `[remediation].agent_command`.

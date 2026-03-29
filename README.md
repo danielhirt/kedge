@@ -131,7 +131,7 @@ name = "claude"
 global_steering = "~/.claude/docs/"
 workspace_steering = "docs/"
 agents_file = "CLAUDE.md"
-skill_dir = ""
+skill_dir = ".claude/skills/"
 ```
 
 ### Configuration Reference
@@ -161,7 +161,7 @@ skill_dir = ""
 | | `global_steering` | | Path for symlinked steering files (dev machines) |
 | | `workspace_steering` | | Path for copied steering files (CI) |
 | | `agents_file` | | Platform-specific instructions file (e.g., `AGENTS.md`) |
-| | `skill_dir` | | Path for agent skill files (empty if N/A) |
+| | `skill_dir` | `""` | Path for agent skill files. If empty, skill installation is skipped. |
 
 ### Timeout Budget
 

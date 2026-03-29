@@ -148,4 +148,4 @@ cargo test --test fingerprint_test
 - [ ] Comment node kinds verified in `is_comment()`
 - [ ] Symbol resolution implemented (or file-level only)
 - [ ] Tests added and passing
-- [ ] `detection.languages` documented with the new language name
+- [ ] Supported languages table in README updated

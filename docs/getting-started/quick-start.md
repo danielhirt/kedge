@@ -18,15 +18,13 @@ kedge init
 
 kedge creates a `kedge.toml` with sensible defaults. Open it and configure:
 
-- **`[detection].languages`**: the languages in your codebase (e.g., `["java", "typescript", "python"]`)
 - **`[triage]`**: your AI provider (`anthropic`, `openai`, or `command`)
 - **`[remediation].agent_command`**: the command that updates docs (e.g., a Kiro or Claude Code agent)
 - **`[[repos.docs]]`**: the git URL and path of your documentation repository
 
 ```toml
 [detection]
-languages = ["java", "typescript"]
-fallback = "content-hash"
+# exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
 provider = "anthropic"
@@ -46,7 +44,7 @@ name = "claude"
 global_steering = "~/.claude/docs"
 workspace_steering = "docs"
 agents_file = "CLAUDE.md"
-skill_dir = ""
+skill_dir = ".claude/skills/"
 ```
 
 ## 2. Stamp provenance

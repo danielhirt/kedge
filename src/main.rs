@@ -206,7 +206,7 @@ name = "claude"
 global_steering = "~/.claude/docs"
 workspace_steering = "docs"
 agents_file = "CLAUDE.md"
-skill_dir = ""
+skill_dir = ".claude/skills/"
 "#;
                 std::fs::write(&cli.config, template)
                     .with_context(|| format!("failed to write {}", cli.config.display()))?;
