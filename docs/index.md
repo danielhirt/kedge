@@ -1,3 +1,9 @@
+---
+hide:
+  - navigation
+  - toc
+---
+
 <div class="landing">
 
 <div class="hero">
@@ -15,8 +21,8 @@ cargo install kedge
 </div>
 
 <div class="hero-links">
-<a href="getting-started/installation.html" class="btn btn-primary">Get Started</a>
-<a href="getting-started/quick-start.html" class="btn btn-secondary">Quick Start</a>
+<a href="getting-started/installation/" class="btn btn-primary">Get Started</a>
+<a href="getting-started/quick-start/" class="btn btn-secondary">Quick Start</a>
 </div>
 </div>
 

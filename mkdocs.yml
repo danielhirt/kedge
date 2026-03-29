@@ -1,0 +1,86 @@
+site_name: kedge
+site_description: Documentation drift detection for enterprise codebases
+site_url: https://danielhirt.github.io/kedge/
+repo_name: danielhirt/kedge
+repo_url: https://github.com/danielhirt/kedge
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+    - Your First Steering File: getting-started/first-steering-file.md
+  - Guides:
+    - GitLab CI Integration: guides/ci-gitlab.md
+    - GitHub Actions Integration: guides/ci-github-actions.md
+    - Agent Integration: guides/agent-integration.md
+    - Multi-Team Setup: guides/multi-team-setup.md
+  - Reference:
+    - Configuration (kedge.toml): reference/configuration.md
+    - Steering File Format: reference/steering-file-format.md
+    - CLI Commands: reference/commands.md
+    - Agent Interface Contract: reference/agent-contract.md
+    - Environment Variables: reference/environment-variables.md
+    - Supported Languages: reference/supported-languages.md
+  - Concepts:
+    - How Drift Detection Works: concepts/how-drift-detection-works.md
+    - Provenance: concepts/provenance.md
+    - Severity Classification: concepts/severity-classification.md
+    - Two-Repo Model: concepts/two-repo-model.md
+  - Contributing:
+    - Architecture: contributing/architecture.md
+    - Adding a Language: contributing/adding-a-language.md
+    - Development: contributing/development.md

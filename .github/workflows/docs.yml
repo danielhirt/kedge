@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/book/**'
+      - 'docs/**'
+      - 'mkdocs.yml'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -21,17 +22,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install mdbook
-        run: |
-          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.44/mdbook-v0.4.44-x86_64-unknown-linux-gnu.tar.gz | tar xz
-          chmod +x mdbook
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
-      - name: Build book
-        run: ./mdbook build docs/book
+      - name: Install mkdocs-material
+        run: pip install mkdocs-material
+
+      - name: Build site
+        run: mkdocs build --strict
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: target/book
+          path: site
 
   deploy:
     needs: build

@@ -1,0 +1,141 @@
+/* Landing page styles */
+
+.landing .hero {
+    text-align: center;
+    padding: 6rem 1.5rem 4rem;
+    max-width: 920px;
+    margin: 0 auto;
+}
+
+.landing .hero .tagline {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--md-primary-fg-color);
+    letter-spacing: -0.02em;
+}
+
+.landing .hero .subtitle {
+    font-size: 1.3rem;
+    opacity: 0.8;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.landing .install-block {
+    max-width: 540px;
+    margin: 0 auto 2.5rem;
+}
+
+.landing .install-block pre {
+    font-size: 1.1rem;
+}
+
+.landing .hero-links {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+}
+
+.landing .btn {
+    display: inline-block;
+    padding: 1rem 2.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.landing .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.landing .btn:active {
+    transform: scale(0.97);
+}
+
+.landing .btn-primary {
+    background: var(--md-primary-fg-color);
+    color: var(--md-primary-bg-color) !important;
+}
+
+.landing .btn-secondary {
+    border: 2px solid var(--md-primary-fg-color);
+    color: var(--md-primary-fg-color);
+    background: transparent;
+}
+
+/* Feature grid */
+
+.landing .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    max-width: 1100px;
+    margin: 4rem auto;
+    padding: 0 1.5rem;
+}
+
+.landing .feature {
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    transition: all 0.25s ease;
+}
+
+.landing .feature:hover {
+    transform: translateY(-4px);
+    border-color: var(--md-primary-fg-color);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.landing .feature h3 {
+    font-size: 1.4rem;
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    color: var(--md-primary-fg-color);
+}
+
+.landing .feature p {
+    font-size: 1rem;
+    line-height: 1.7;
+    margin: 0;
+    opacity: 0.85;
+}
+
+/* Detail sections */
+
+.landing .details {
+    max-width: 860px;
+    margin: 5rem auto;
+    padding: 0 1.5rem;
+}
+
+.landing .detail-section {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.landing .detail-section:last-child {
+    border-bottom: none;
+}
+
+.landing .detail-section h3 {
+    font-size: 1.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.landing .detail-section p {
+    font-size: 1.1rem;
+    line-height: 1.75;
+    opacity: 0.85;
+    margin: 0;
+}
