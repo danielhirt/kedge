@@ -64,6 +64,15 @@ fn parse_agent_output_json_empty_status_no_urls() {
     assert!(all.is_empty());
 }
 
+#[test]
+fn parse_agent_output_json_mr_url_not_in_mr_urls_gets_prepended() {
+    let json = r#"{"mr_url": "https://gitlab.com/mr/999", "mr_urls": ["https://gitlab.com/mr/1", "https://gitlab.com/mr/2"]}"#;
+    let (single, all) = parse_agent_output(json);
+    assert_eq!(single, Some("https://gitlab.com/mr/999".to_string()));
+    assert_eq!(all.len(), 3);
+    assert_eq!(all[0], "https://gitlab.com/mr/999");
+}
+
 // --- scrape_urls ---
 
 #[test]
@@ -121,4 +130,11 @@ fn scrape_urls_empty_string() {
 fn scrape_urls_no_urls_in_text() {
     let urls = scrape_urls("just plain text with no links at all");
     assert!(urls.is_empty());
+}
+
+#[test]
+fn scrape_urls_strips_single_quotes() {
+    let (single, all) = parse_agent_output("Visit 'https://example.com/pr/1' for details");
+    assert_eq!(single, Some("https://example.com/pr/1".to_string()));
+    assert_eq!(all.len(), 1);
 }
