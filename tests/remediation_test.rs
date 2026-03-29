@@ -54,7 +54,7 @@ fn builds_agent_payload_from_triaged_doc() {
         .branch_prefix
         .starts_with("kedge/auto-update"));
     assert_eq!(payload.drifted_anchors.len(), 1);
-    assert!(payload.instructions.contains("def456"));
+    assert!(payload.instructions.contains("Update the documentation"));
 }
 
 #[test]
@@ -271,7 +271,20 @@ fn partition_all_docs_need_remediation() {
 // --- custom agent_instructions ---
 
 #[test]
-fn agent_payload_appends_custom_instructions() {
+fn agent_payload_uses_default_instructions_when_empty() {
+    let doc = make_doc(
+        "auth.md",
+        Severity::Minor,
+        vec![make_anchor("src/Auth.java", None, Severity::Minor)],
+    );
+
+    let payload = remediation::build_agent_payload(&doc, "abc123", false, "");
+
+    assert!(payload.instructions.contains("Update the documentation"));
+}
+
+#[test]
+fn agent_payload_overrides_with_custom_instructions() {
     let doc = make_doc(
         "auth.md",
         Severity::Minor,
@@ -281,26 +294,11 @@ fn agent_payload_appends_custom_instructions() {
     let payload =
         remediation::build_agent_payload(&doc, "abc123", false, "Follow our style guide.");
 
-    assert!(payload.instructions.contains("abc123"));
-    assert!(payload.instructions.contains("Follow our style guide."));
+    assert_eq!(payload.instructions, "Follow our style guide.");
 }
 
 #[test]
-fn agent_payload_omits_newline_when_no_custom_instructions() {
-    let doc = make_doc(
-        "auth.md",
-        Severity::Minor,
-        vec![make_anchor("src/Auth.java", None, Severity::Minor)],
-    );
-
-    let payload = remediation::build_agent_payload(&doc, "abc123", false, "");
-
-    assert!(!payload.instructions.ends_with('\n'));
-    assert!(!payload.instructions.contains('\n'));
-}
-
-#[test]
-fn batch_payload_appends_custom_instructions() {
+fn batch_payload_overrides_with_custom_instructions() {
     let doc = make_doc(
         "api.md",
         Severity::Minor,
@@ -315,6 +313,5 @@ fn batch_payload_appends_custom_instructions() {
         "Use conventional commits.",
     );
 
-    assert!(payload.instructions.contains("def456"));
-    assert!(payload.instructions.contains("Use conventional commits."));
+    assert_eq!(payload.instructions, "Use conventional commits.");
 }

@@ -110,23 +110,23 @@ Controls the agent invocation layer.
 | `batch` | boolean | `false` | When `true`, send all drifted docs in a single agent invocation instead of one per doc. |
 | `agent_timeout` | integer | `300` | Seconds before the agent process is killed (SIGKILL). |
 | `agent_env` | table | `{}` | Extra environment variables passed to the agent process. Values support `${VAR}` expansion. |
-| `agent_instructions` | string | `""` | Custom text appended to the `instructions` field in the agent JSON payload. |
+| `agent_instructions` | string | `""` | Custom text that replaces the default `instructions` in the agent JSON payload. |
 
 ### `agent_instructions`
 
-kedge sends a default instruction telling the agent which commit to stamp provenance with. Set `agent_instructions` to append org-specific guidance:
+The default instruction tells the agent to update documentation based on the drifted anchors. Set `agent_instructions` to replace it with org-specific guidance:
 
 ```toml
 [remediation]
 agent_command = "your-agent-command"
 agent_instructions = """
-Follow our internal style guide at https://wiki.example.com/docs-style.
+Update the documentation to reflect the code changes.
+Follow our style guide at https://wiki.example.com/docs-style.
 Include the JIRA ticket ID in the MR title.
-Do not modify code examples without reviewer approval.
 """
 ```
 
-The custom text appears after the default instruction in the `instructions` field of the JSON payload sent to the agent.
+When set, this value becomes the `instructions` field in the JSON payload sent to the agent. When empty (default), kedge uses a generic instruction.
 
 ### Per-doc vs batch mode
 

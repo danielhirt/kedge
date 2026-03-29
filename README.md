@@ -154,7 +154,7 @@ skill_dir = ""
 | | `batch` | `false` | Bundle all drifted docs into one agent call |
 | | `agent_timeout` | `300` | Seconds before agent process is killed |
 | | `agent_env` | `{}` | Extra env vars passed to agent |
-| | `agent_instructions` | `""` | Custom text appended to the agent payload instructions |
+| | `agent_instructions` | `""` | Replaces the default `instructions` in the agent payload |
 | `[repos]` | `git_timeout` | `300` | Seconds for clone/fetch/ls-remote operations |
 | `[[repos.docs]]` | `url` | | Git URL of the documentation repository |
 | | `path` | | Subdirectory within docs repo for steering files |
