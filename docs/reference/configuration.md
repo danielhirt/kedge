@@ -201,6 +201,18 @@ Agent platform configurations used by `kedge install` to distribute doc files. T
 | `agents_file` | string | Platform-specific instructions file name (e.g., `"AGENTS.md"`, `"CLAUDE.md"`). Installed from `_kedge/AGENTS.md` in the docs repo. |
 | `skill_dir` | string | Path for agent skill files. If empty, skill installation is skipped. |
 
+## Environment variables
+
+These override config file settings when present.
+
+| Variable | Description |
+|----------|-------------|
+| `KEDGE_CODE_REPO_URL` | Override code repo URL (default: `file://<cwd>`). Used to match anchors. |
+| `KEDGE_DOCS_PATH` | Override docs path (skips clone from `[[repos.docs]]`). |
+| `KEDGE_DOCS_REPO_URL` | Override docs repo URL for agent payloads (default: code repo URL). Set this when docs live in a separate repo and you use `KEDGE_DOCS_PATH`. |
+| `ANTHROPIC_API_KEY` | API key for `anthropic` triage provider. |
+| `OPENAI_API_KEY` | API key for `openai` triage provider. |
+
 ## Timeout budget
 
 All timeouts are configurable. Default values fit within a 1-hour CI pipeline:

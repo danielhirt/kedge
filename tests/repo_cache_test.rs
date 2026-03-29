@@ -102,3 +102,55 @@ fn get_or_clone_refresh_picks_up_new_branch_commits() {
         "updated"
     );
 }
+
+#[test]
+fn same_url_different_refs_get_separate_cache_dirs() {
+    let remote_dir = TempDir::new().unwrap();
+    init_git_repo(remote_dir.path());
+
+    std::fs::write(remote_dir.path().join("doc.md"), "main content").unwrap();
+    git_commit(remote_dir.path(), "initial on main");
+
+    // Create a branch with different content
+    Command::new("git")
+        .args(["checkout", "-b", "develop"])
+        .current_dir(remote_dir.path())
+        .output()
+        .unwrap();
+    std::fs::write(remote_dir.path().join("doc.md"), "develop content").unwrap();
+    git_commit(remote_dir.path(), "develop commit");
+
+    // Go back to main
+    Command::new("git")
+        .args(["checkout", "main"])
+        .current_dir(remote_dir.path())
+        .output()
+        .unwrap();
+
+    let repo_url = format!("file://{}", remote_dir.path().display());
+
+    // Clone with ref=main
+    let main_cache =
+        kedge::install::repo_cache::get_or_clone(&repo_url, "main", 30, "origin").unwrap();
+    // Clone with ref=develop
+    let dev_cache =
+        kedge::install::repo_cache::get_or_clone(&repo_url, "develop", 30, "origin").unwrap();
+
+    // Cache dirs must be different
+    assert_ne!(
+        main_cache, dev_cache,
+        "same URL with different refs must use separate cache directories"
+    );
+
+    // Each should have its own content
+    assert_eq!(
+        std::fs::read_to_string(main_cache.join("doc.md")).unwrap(),
+        "main content",
+        "main cache should have main content"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dev_cache.join("doc.md")).unwrap(),
+        "develop content",
+        "develop cache should have develop content"
+    );
+}

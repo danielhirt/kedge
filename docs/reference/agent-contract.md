@@ -184,7 +184,7 @@ agent_instructions = "Update the documentation, then set each anchor's provenanc
 
 ## Exit code
 
-The agent process must exit with code `0` on success. kedge treats a non-zero exit code as an error and logs the failure in the `RemediationSummary.errors` array.
+The agent process must exit with code `0` on success. kedge treats a non-zero exit code as an error and logs the failure in the `RemediationSummary.errors` array. If any agent invocation fails, `kedge update` itself exits with code `1` after printing the summary.
 
 ## `no_update` anchors
 

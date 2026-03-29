@@ -6,9 +6,11 @@ use std::time::Duration;
 
 use crate::safety;
 
-fn cache_dir_for(repo_url: &str) -> Result<PathBuf> {
+fn cache_dir_for(repo_url: &str, git_ref: &str) -> Result<PathBuf> {
     let mut hasher = Sha256::new();
     hasher.update(repo_url.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(git_ref.as_bytes());
     let hash = hasher.finalize();
     let hash_hex = format!("{:x}", hash);
     let short_hash = &hash_hex[..12];
@@ -65,7 +67,7 @@ pub fn get_or_clone(
     safety::validate_repo_url(repo_url)?;
     safety::validate_git_ref(git_ref)?;
 
-    let cache_dir = cache_dir_for(repo_url)?;
+    let cache_dir = cache_dir_for(repo_url, git_ref)?;
     let cache_str = cache_dir.to_string_lossy();
 
     if cache_dir.exists() {
@@ -122,7 +124,7 @@ pub fn is_up_to_date(
     safety::validate_repo_url(repo_url)?;
     safety::validate_git_ref(git_ref)?;
 
-    let cache_dir = cache_dir_for(repo_url)?;
+    let cache_dir = cache_dir_for(repo_url, git_ref)?;
 
     if !cache_dir.exists() {
         return Ok(false);

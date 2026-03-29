@@ -132,10 +132,13 @@ fn java_project_clean_after_stamping() {
     stamp_docs(code_dir.path(), docs_dir.path());
 
     // Detection should find no drift
+    let doc_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         code_dir.path(),
         docs_dir.path(),
         &code_url,
+        &doc_url,
+        docs_dir.path(),
         "nexus-platform",
         &[],
     )
@@ -181,10 +184,13 @@ fn java_project_detects_drift_after_code_change() {
         .output()
         .unwrap();
 
+    let doc_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         code_dir.path(),
         docs_dir.path(),
         &code_url,
+        &doc_url,
+        docs_dir.path(),
         "nexus-platform",
         &[],
     )
@@ -234,10 +240,13 @@ fn java_project_non_anchored_change_stays_clean() {
         .output()
         .unwrap();
 
+    let doc_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         code_dir.path(),
         docs_dir.path(),
         &code_url,
+        &doc_url,
+        docs_dir.path(),
         "nexus-platform",
         &[],
     )

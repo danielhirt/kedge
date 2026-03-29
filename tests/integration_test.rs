@@ -678,3 +678,174 @@ fn update_no_stamp_does_not_affect_agent_invocation() {
         stdout
     );
 }
+
+#[test]
+fn agent_payload_has_correct_target_repo_and_relative_path() {
+    let code_dir = TempDir::new().unwrap();
+    let code_path = code_dir.path();
+    init_git_repo(code_path);
+
+    std::fs::create_dir_all(code_path.join("src/api")).unwrap();
+    std::fs::write(
+        code_path.join("src/api/Handler.java"),
+        "public class Handler { public void handle() {} }",
+    )
+    .unwrap();
+    git_commit(code_path, "init");
+    let sha = head_sha(code_path);
+
+    // Docs dir with a subdirectory (simulating repo_root/steering/api.md)
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"file://{code}\"\n      path: src/api/Handler.java\n      symbol: Handler#handle\n      provenance: {sha}\n---\n\n# API handler\n",
+        code = code_path.display(),
+    );
+    std::fs::create_dir_all(docs_dir.path().join("steering")).unwrap();
+    std::fs::write(docs_dir.path().join("steering/api.md"), &steering).unwrap();
+
+    // Modify code to cause drift
+    std::fs::write(
+        code_path.join("src/api/Handler.java"),
+        "public class Handler { public void handle(Request req) {} }",
+    )
+    .unwrap();
+    git_commit(code_path, "add request param");
+
+    // Capture agent payload to a temp file (cat captures stdin, exits 0)
+    let payload_file = code_path.join("agent-payload.json");
+    let agent_cmd = format!("sh -c 'cat > {}'", payload_file.display());
+    let docs_repo_url = "https://github.com/myorg/docs.git";
+    let config = format!(
+        "[detection]\n\n[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"{agent}\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        agent = agent_cmd,
+        code = code_path.display(),
+    );
+    std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path().join("steering"))
+        .env("KEDGE_DOCS_REPO_URL", docs_repo_url)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "kedge update failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Parse the agent payload
+    let payload_str =
+        std::fs::read_to_string(&payload_file).expect("agent payload file should exist");
+    let payload: serde_json::Value = serde_json::from_str(&payload_str).unwrap();
+
+    // target.repo should be KEDGE_DOCS_REPO_URL, not the code repo URL
+    let target_repo = payload["target"]["repo"].as_str().unwrap();
+    assert_eq!(
+        target_repo, docs_repo_url,
+        "target.repo should be the docs repo URL from KEDGE_DOCS_REPO_URL"
+    );
+    assert!(
+        !target_repo.contains(&code_path.display().to_string()),
+        "target.repo must not be the code repo URL"
+    );
+
+    // target.path should be relative (just "api.md" since KEDGE_DOCS_PATH is the repo root)
+    let target_path = payload["target"]["path"].as_str().unwrap();
+    assert!(
+        !target_path.starts_with('/'),
+        "target.path must be relative, got: {}",
+        target_path
+    );
+    assert!(
+        target_path.ends_with("api.md"),
+        "target.path should reference the steering file, got: {}",
+        target_path
+    );
+}
+
+#[test]
+fn update_exits_nonzero_when_agent_fails() {
+    let (code_dir, docs_dir) = setup_code_and_docs();
+    let code_path = code_dir.path();
+
+    // Modify code to create drift
+    std::fs::write(
+        code_path.join("src/auth/Auth.java"),
+        "public class Auth { public boolean check(String t, int flags) { return true; } }",
+    )
+    .unwrap();
+    git_commit(code_path, "add flags");
+
+    // Agent command that always fails (exit 1)
+    let config = format!(
+        "[detection]\n\n[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"false\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        code = code_path.display(),
+    );
+    std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        !output.status.success(),
+        "kedge update should exit non-zero when agent fails, got exit 0"
+    );
+
+    // The summary should still be valid JSON with a populated errors array
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let summary: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let errors = summary["errors"].as_array().unwrap();
+    assert!(
+        !errors.is_empty(),
+        "errors array should be non-empty when agent fails"
+    );
+}
+
+#[test]
+fn update_exits_zero_when_agent_succeeds() {
+    let (code_dir, docs_dir) = setup_code_and_docs();
+    let code_path = code_dir.path();
+
+    // Modify code to create drift
+    std::fs::write(
+        code_path.join("src/auth/Auth.java"),
+        "public class Auth { public boolean check(String t, int flags) { return true; } }",
+    )
+    .unwrap();
+    git_commit(code_path, "add flags");
+
+    // Agent command that succeeds
+    let config = format!(
+        "[detection]\n\n[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        code = code_path.display(),
+    );
+    std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "kedge update should exit 0 when agent succeeds, got: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let summary: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let errors = summary["errors"].as_array().unwrap();
+    assert!(errors.is_empty(), "errors array should be empty on success");
+}

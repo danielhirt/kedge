@@ -123,10 +123,13 @@ fn detection_pipeline_finds_drift_when_code_changed() {
         .unwrap();
 
     // Run detection
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     )
@@ -156,10 +159,13 @@ fn detection_pipeline_reports_clean_when_no_changes() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     )
@@ -198,10 +204,13 @@ fn sig_provenance_detects_drift_without_git_history() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     )
@@ -229,10 +238,13 @@ fn sig_provenance_reports_clean_when_content_matches() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     )
@@ -281,10 +293,13 @@ fn sig_provenance_survives_rebase() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/auth.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let report = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     )
@@ -312,10 +327,13 @@ fn detect_drift_rejects_anchor_with_path_traversal() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/evil.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let result = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     );
@@ -343,10 +361,13 @@ fn detect_drift_rejects_invalid_provenance_format() {
     std::fs::create_dir_all(docs_dir.path().join("test")).unwrap();
     std::fs::write(docs_dir.path().join("test/evil.md"), &steering).unwrap();
 
+    let doc_repo_url = format!("file://{}", docs_dir.path().display());
     let result = kedge::detection::detect_drift(
         dir.path(),
         docs_dir.path().join("test"),
         &format!("file://{}", dir.path().display()),
+        &doc_repo_url,
+        docs_dir.path(),
         "test-repo",
         &[],
     );
@@ -455,19 +476,25 @@ fn detect_drift_across_multiple_doc_dirs() {
         .unwrap();
 
     // Run detect_drift on each doc dir and merge (mimicking multi-repo check)
+    let doc_repo_url1 = format!("file://{}", docs_dir1.path().display());
     let report1 = kedge::detection::detect_drift(
         dir.path(),
         docs_dir1.path().join("auth"),
         &code_repo_url,
+        &doc_repo_url1,
+        docs_dir1.path(),
         "test-repo",
         &[],
     )
     .unwrap();
 
+    let doc_repo_url2 = format!("file://{}", docs_dir2.path().display());
     let report2 = kedge::detection::detect_drift(
         dir.path(),
         docs_dir2.path().join("api"),
         &code_repo_url,
+        &doc_repo_url2,
+        docs_dir2.path(),
         "test-repo",
         &[],
     )
@@ -580,19 +607,25 @@ fn detect_drift_multiple_dirs_mixed_clean_and_drifted() {
         .unwrap();
 
     // Run detection on each
+    let doc_repo_url1 = format!("file://{}", docs_dir1.path().display());
     let report1 = kedge::detection::detect_drift(
         dir.path(),
         docs_dir1.path(),
         &code_repo_url,
+        &doc_repo_url1,
+        docs_dir1.path(),
         "test-repo",
         &[],
     )
     .unwrap();
 
+    let doc_repo_url2 = format!("file://{}", docs_dir2.path().display());
     let report2 = kedge::detection::detect_drift(
         dir.path(),
         docs_dir2.path(),
         &code_repo_url,
+        &doc_repo_url2,
+        docs_dir2.path(),
         "test-repo",
         &[],
     )
@@ -604,4 +637,150 @@ fn detect_drift_multiple_dirs_mixed_clean_and_drifted() {
 
     assert_eq!(total_clean, 1, "one doc should be clean (Stable)");
     assert_eq!(total_drifted, 1, "one doc should be drifted (Changing)");
+}
+
+#[test]
+fn detect_drift_sets_doc_repo_to_docs_url_not_code_url() {
+    let (dir, sha) = setup_git_repo(
+        "src/auth/AuthService.java",
+        "public class AuthService { public boolean validate(String t) { return true; } }",
+    );
+    let code_repo_url = format!("file://{}", dir.path().display());
+    let docs_repo_url = "https://github.com/myorg/docs.git";
+
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{code}\"\n      path: src/auth/AuthService.java\n      symbol: AuthService#validate\n      provenance: {sha}\n---\n\n# Auth docs\n",
+        code = code_repo_url,
+        sha = sha,
+    );
+    std::fs::write(docs_dir.path().join("auth.md"), &steering).unwrap();
+
+    // Modify code to cause drift
+    std::fs::write(
+        dir.path().join("src/auth/AuthService.java"),
+        "public class AuthService { public boolean validate(String t, int flags) { return true; } }",
+    ).unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "add flags param"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let report = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir.path(),
+        &code_repo_url,
+        docs_repo_url,
+        docs_dir.path(),
+        "test-repo",
+        &[],
+    )
+    .unwrap();
+
+    assert_eq!(report.drifted.len(), 1);
+    // doc_repo must be the docs repo URL, not the code repo URL
+    assert_eq!(
+        report.drifted[0].doc_repo, docs_repo_url,
+        "doc_repo should be the docs repo URL, not the code repo URL"
+    );
+    assert_ne!(
+        report.drifted[0].doc_repo, code_repo_url,
+        "doc_repo must not be the code repo URL"
+    );
+}
+
+#[test]
+fn detect_drift_stores_repo_relative_doc_paths() {
+    let (dir, sha) = setup_git_repo("src/main.rs", "fn main() { println!(\"hello\"); }");
+    let code_repo_url = format!("file://{}", dir.path().display());
+
+    // Create docs in a subdirectory to simulate repo_root/docs/steering/file.md
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{code}\"\n      path: src/main.rs\n      provenance: {sha}\n---\n\n# Main docs\n",
+        code = code_repo_url,
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("steering")).unwrap();
+    std::fs::write(docs_dir.path().join("steering/main.md"), &steering).unwrap();
+
+    // Modify code
+    std::fs::write(
+        dir.path().join("src/main.rs"),
+        "fn main() { println!(\"changed\"); }",
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "change main"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    // repo_root is the TempDir root, scan_dir is steering/ subdirectory
+    let report = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("steering"),
+        &code_repo_url,
+        "https://example.com/docs.git",
+        docs_dir.path(), // repo root is parent of scan dir
+        "test-repo",
+        &[],
+    )
+    .unwrap();
+
+    assert_eq!(report.drifted.len(), 1);
+    // Path must be relative to repo root (steering/main.md), not absolute
+    assert_eq!(
+        report.drifted[0].doc, "steering/main.md",
+        "doc path should be relative to repo root"
+    );
+    assert!(
+        !report.drifted[0].doc.starts_with('/'),
+        "doc path must not be absolute: {}",
+        report.drifted[0].doc
+    );
+}
+
+#[test]
+fn detect_drift_clean_docs_also_have_relative_paths() {
+    let (dir, sha) = setup_git_repo("src/lib.rs", "pub fn greet() -> &'static str { \"hello\" }");
+    let code_repo_url = format!("file://{}", dir.path().display());
+
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{code}\"\n      path: src/lib.rs\n      provenance: {sha}\n---\n\n# Lib docs\n",
+        code = code_repo_url,
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir.path().join("docs")).unwrap();
+    std::fs::write(docs_dir.path().join("docs/lib.md"), &steering).unwrap();
+
+    // No code changes — should be clean
+    let report = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir.path().join("docs"),
+        &code_repo_url,
+        "https://example.com/docs.git",
+        docs_dir.path(),
+        "test-repo",
+        &[],
+    )
+    .unwrap();
+
+    assert_eq!(report.clean.len(), 1);
+    assert_eq!(
+        report.clean[0].doc, "docs/lib.md",
+        "clean doc path should also be relative to repo root"
+    );
 }

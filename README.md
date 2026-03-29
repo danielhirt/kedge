@@ -243,6 +243,7 @@ jobs:
 | `OPENAI_API_KEY` | If provider = `openai` | API key for OpenAI-compatible triage calls |
 | `KEDGE_CODE_REPO_URL` | No | Override code repo URL (default: `file://<cwd>`) |
 | `KEDGE_DOCS_PATH` | No | Override docs path (skips clone from `[[repos.docs]]`) |
+| `KEDGE_DOCS_REPO_URL` | No | Override docs repo URL for agent payloads (default: code repo URL). Set this when docs live in a separate repo and you use `KEDGE_DOCS_PATH`. |
 
 Pass extra env vars to the agent process via `agent_env` in `kedge.toml`:
 
@@ -342,7 +343,7 @@ kedge has two independent workflows:
 | `kedge init` | Create a default `kedge.toml` in the current directory |
 | `kedge check [--report <file>]` | Detect drift and output a report (exit 1 if drift found) |
 | `kedge triage [--report <file>]` | Classify drift severity via AI (reads from stdin or file) |
-| `kedge update [--report <file>] [--no-stamp]` | Full pipeline: detect, triage, invoke agent, open MR |
+| `kedge update [--report <file>] [--no-stamp]` | Full pipeline: detect, triage, invoke agent, open MR (exit 1 if agent fails) |
 | `kedge status` | Show all anchors and their current state |
 | `kedge link [files...]` | Stamp content-addressed provenance on doc anchors |
 | `kedge sync [files...]` | Advance provenance without changing doc content |

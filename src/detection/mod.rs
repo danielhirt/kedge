@@ -12,6 +12,22 @@ use crate::safety;
 use self::fingerprint::{compute_sig, SIG_PREFIX};
 use self::git::{diff_with_summary, head_sha, read_file_at_rev};
 
+/// Convert an absolute doc path to a path relative to the docs repo root.
+/// Falls back to canonicalized comparison, then returns the original on failure.
+fn make_repo_relative(abs_path: &str, repo_root: &Path) -> String {
+    let p = Path::new(abs_path);
+    if let Ok(rel) = p.strip_prefix(repo_root) {
+        return rel.to_string_lossy().into_owned();
+    }
+    // Try canonicalized paths (handles symlinks, e.g. /var → /private/var on macOS)
+    if let (Ok(canon_p), Ok(canon_root)) = (p.canonicalize(), repo_root.canonicalize()) {
+        if let Ok(rel) = canon_p.strip_prefix(&canon_root) {
+            return rel.to_string_lossy().into_owned();
+        }
+    }
+    abs_path.to_string()
+}
+
 fn repo_path_from_url(url: &str) -> &str {
     url.strip_prefix("file://").unwrap_or(url)
 }
@@ -38,6 +54,8 @@ pub fn detect_drift(
     code_repo_path: &Path,
     docs_dir: impl AsRef<Path>,
     code_repo_url: &str,
+    doc_repo_url: &str,
+    doc_repo_root: &Path,
     repo_name: &str,
     exclude_dirs: &[String],
 ) -> Result<DriftReport> {
@@ -46,7 +64,7 @@ pub fn detect_drift(
     let canon_repo = code_repo_path
         .canonicalize()
         .unwrap_or_else(|_| code_repo_path.to_path_buf());
-    let docs = scan_docs(docs_dir, code_repo_url, None, exclude_dirs);
+    let docs = scan_docs(docs_dir, doc_repo_url, None, exclude_dirs);
 
     let mut drifted: Vec<DriftedDoc> = Vec::new();
     let mut clean: Vec<CleanDoc> = Vec::new();
@@ -115,14 +133,16 @@ pub fn detect_drift(
             }
         }
 
+        let relative_doc = make_repo_relative(&doc.path, doc_repo_root);
+
         if drifted_anchors.is_empty() {
             clean.push(CleanDoc {
-                doc: doc.path.clone(),
+                doc: relative_doc,
                 anchor_count: relevant_anchors.len(),
             });
         } else {
             drifted.push(DriftedDoc {
-                doc: doc.path.clone(),
+                doc: relative_doc,
                 doc_repo: doc.doc_repo.clone(),
                 anchors: drifted_anchors,
             });

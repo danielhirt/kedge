@@ -30,9 +30,25 @@ fn resolve_md_files(
     }
 }
 
-fn resolve_docs_path(config: &kedge::config::Config) -> anyhow::Result<std::path::PathBuf> {
+/// Resolved docs source with enough info to pass to detect_drift and resolve paths.
+struct DocsSource {
+    /// Directory to scan for .md files (may be a subdirectory of repo_root).
+    scan_dir: std::path::PathBuf,
+    /// Git URL of the docs repository (used in agent payloads).
+    repo_url: String,
+    /// Root of the cloned docs repo (for computing repo-relative paths).
+    repo_root: std::path::PathBuf,
+}
+
+fn resolve_docs_source(config: &kedge::config::Config) -> anyhow::Result<DocsSource> {
     if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
-        return Ok(std::path::PathBuf::from(p));
+        let scan_dir = std::path::PathBuf::from(&p);
+        return Ok(DocsSource {
+            repo_url: std::env::var("KEDGE_DOCS_REPO_URL")
+                .unwrap_or_else(|_| code_repo_url(&std::env::current_dir().unwrap_or_default())),
+            repo_root: scan_dir.clone(),
+            scan_dir,
+        });
     }
     let doc_repo = config
         .repos
@@ -51,28 +67,37 @@ fn resolve_docs_path(config: &kedge::config::Config) -> anyhow::Result<std::path
             kedge::safety::sanitize_url(&doc_repo.url)
         )
     })?;
-    if doc_repo.path.is_empty() {
-        Ok(cached)
+    let scan_dir = if doc_repo.path.is_empty() {
+        cached.clone()
     } else {
         let resolved = cached.join(&doc_repo.path);
         kedge::safety::validate_path_within(&cached, &resolved)
             .context("docs repo path escapes cache directory")?;
-        Ok(resolved)
-    }
+        resolved
+    };
+    Ok(DocsSource {
+        repo_url: doc_repo.url.clone(),
+        repo_root: cached,
+        scan_dir,
+    })
 }
 
-fn resolve_all_docs_paths(
-    config: &kedge::config::Config,
-) -> anyhow::Result<Vec<std::path::PathBuf>> {
+fn resolve_all_docs_sources(config: &kedge::config::Config) -> anyhow::Result<Vec<DocsSource>> {
     if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
-        return Ok(vec![std::path::PathBuf::from(p)]);
+        let scan_dir = std::path::PathBuf::from(&p);
+        return Ok(vec![DocsSource {
+            repo_url: std::env::var("KEDGE_DOCS_REPO_URL")
+                .unwrap_or_else(|_| code_repo_url(&std::env::current_dir().unwrap_or_default())),
+            repo_root: scan_dir.clone(),
+            scan_dir,
+        }]);
     }
 
     if config.repos.docs.is_empty() {
         anyhow::bail!("no docs repos configured in kedge.toml");
     }
 
-    let mut paths = Vec::new();
+    let mut sources = Vec::new();
     for doc_repo in &config.repos.docs {
         let cached = kedge::install::repo_cache::get_or_clone(
             &doc_repo.url,
@@ -87,17 +112,21 @@ fn resolve_all_docs_paths(
             )
         })?;
 
-        let resolved = if doc_repo.path.is_empty() {
-            cached
+        let scan_dir = if doc_repo.path.is_empty() {
+            cached.clone()
         } else {
             let p = cached.join(&doc_repo.path);
             kedge::safety::validate_path_within(&cached, &p)
                 .context("docs repo path escapes cache directory")?;
             p
         };
-        paths.push(resolved);
+        sources.push(DocsSource {
+            repo_url: doc_repo.url.clone(),
+            repo_root: cached,
+            scan_dir,
+        });
     }
-    Ok(paths)
+    Ok(sources)
 }
 
 fn stamp_anchors(
@@ -153,17 +182,28 @@ fn stamp_anchors(
 }
 
 fn collect_doc_contents(
-    docs_path: &std::path::Path,
+    repo_roots: &[&std::path::Path],
     report: &kedge::models::DriftReport,
 ) -> std::collections::HashMap<String, String> {
     let mut contents = std::collections::HashMap::new();
     for drifted_doc in &report.drifted {
-        let doc_path = docs_path.join(&drifted_doc.doc);
-        if let Ok(content) = std::fs::read_to_string(&doc_path) {
-            contents.insert(drifted_doc.doc.clone(), content);
+        for root in repo_roots {
+            let doc_path = root.join(&drifted_doc.doc);
+            if let Ok(content) = std::fs::read_to_string(&doc_path) {
+                contents.insert(drifted_doc.doc.clone(), content);
+                break;
+            }
         }
     }
     contents
+}
+
+/// Resolve a repo-relative doc path back to an absolute filesystem path.
+fn resolve_doc_file(relative: &str, repo_roots: &[&std::path::Path]) -> Option<std::path::PathBuf> {
+    repo_roots.iter().find_map(|root| {
+        let full = root.join(relative);
+        full.exists().then_some(full)
+    })
 }
 
 fn main() -> anyhow::Result<()> {
@@ -243,24 +283,32 @@ skill_dir = ".claude/skills/"
 
             let config = kedge::config::Config::from_file(&cli.config)
                 .context("failed to load kedge.toml — run `kedge init` first");
-            let (docs_paths, exclude_dirs) = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+            let (docs_sources, exclude_dirs) = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
                 let exclude = config
                     .as_ref()
                     .map(|c| c.detection.exclude_dirs.clone())
                     .unwrap_or_else(|_| kedge::config::DetectionConfig::default().exclude_dirs);
-                (vec![std::path::PathBuf::from(p)], exclude)
+                let scan_dir = std::path::PathBuf::from(&p);
+                let source = DocsSource {
+                    repo_url: std::env::var("KEDGE_DOCS_REPO_URL").unwrap_or_else(|_| cru.clone()),
+                    repo_root: scan_dir.clone(),
+                    scan_dir,
+                };
+                (vec![source], exclude)
             } else {
                 let cfg = config?;
                 let exclude = cfg.detection.exclude_dirs.clone();
-                (resolve_all_docs_paths(&cfg)?, exclude)
+                (resolve_all_docs_sources(&cfg)?, exclude)
             };
 
             let mut merged_report: Option<kedge::models::DriftReport> = None;
-            for docs_path in &docs_paths {
+            for source in &docs_sources {
                 let report = kedge::detection::detect_drift(
                     &code_repo_path,
-                    docs_path,
+                    &source.scan_dir,
                     &cru,
+                    &source.repo_url,
+                    &source.repo_root,
                     &rn,
                     &exclude_dirs,
                 )?;
@@ -307,9 +355,10 @@ skill_dir = ".claude/skills/"
 
             let config = kedge::config::Config::from_file(&cli.config)
                 .context("failed to load kedge.toml — triage requires a [triage] config")?;
-            let docs_path = resolve_docs_path(&config)?;
+            let docs_source = resolve_docs_source(&config)?;
 
-            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
+            let doc_contents =
+                collect_doc_contents(&[docs_source.repo_root.as_path()], &drift_report);
 
             let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
             let triaged = rt.block_on(kedge::triage::triage_drift_report(
@@ -328,14 +377,16 @@ skill_dir = ".claude/skills/"
             let rn = repo_name(&code_repo_path);
             let cru = code_repo_url(&code_repo_path);
 
-            let docs_paths = resolve_all_docs_paths(&config)?;
+            let docs_sources = resolve_all_docs_sources(&config)?;
 
             let mut merged_report: Option<kedge::models::DriftReport> = None;
-            for docs_path in &docs_paths {
+            for source in &docs_sources {
                 let sub_report = kedge::detection::detect_drift(
                     &code_repo_path,
-                    docs_path,
+                    &source.scan_dir,
                     &cru,
+                    &source.repo_url,
+                    &source.repo_root,
                     &rn,
                     &config.detection.exclude_dirs,
                 )?;
@@ -362,11 +413,9 @@ skill_dir = ".claude/skills/"
             }
 
             let current_commit = drift_report.commit.clone();
-            // Doc paths in DriftReport are absolute, so any base path works for join
-            let mut doc_contents = std::collections::HashMap::new();
-            for docs_path in &docs_paths {
-                doc_contents.extend(collect_doc_contents(docs_path, &drift_report));
-            }
+            let repo_roots: Vec<&std::path::Path> =
+                docs_sources.iter().map(|s| s.repo_root.as_path()).collect();
+            let doc_contents = collect_doc_contents(&repo_roots, &drift_report);
 
             let anchor_count: usize = drift_report.drifted.iter().map(|d| d.anchors.len()).sum();
             if config.triage.provider == "none" {
@@ -499,7 +548,20 @@ skill_dir = ".claude/skills/"
                                     .to_string(),
                         };
                     }
-                    let doc_file = std::path::PathBuf::from(&doc.doc);
+                    let doc_file = match resolve_doc_file(&doc.doc, &repo_roots) {
+                        Some(p) => p,
+                        None => {
+                            eprintln!(
+                                "warning: cannot resolve doc path for provenance sync: {}",
+                                doc.doc
+                            );
+                            return kedge::models::ProvenanceSynced {
+                                doc: doc.doc.clone(),
+                                anchors_synced: 0,
+                                reason: "could not resolve doc path".to_string(),
+                            };
+                        }
+                    };
                     let anchors: Vec<kedge::models::Anchor> = doc
                         .anchors
                         .iter()
@@ -520,12 +582,17 @@ skill_dir = ".claude/skills/"
                 })
                 .collect();
 
+            let has_errors = !errors.is_empty();
             let summary = kedge::models::RemediationSummary {
                 remediated,
                 provenance_advanced,
                 errors,
             };
             println!("{}", serde_json::to_string_pretty(&summary)?);
+
+            if has_errors {
+                std::process::exit(1);
+            }
         }
         Command::Status => {
             let docs_path_str =
