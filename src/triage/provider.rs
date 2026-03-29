@@ -5,10 +5,11 @@ use crate::config::TriageConfig;
 const DEFAULT_ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/messages";
 const DEFAULT_OPENAI_URL: &str = "https://api.openai.com/v1/chat/completions";
 
-fn http_client() -> &'static reqwest::Client {
-    use std::sync::OnceLock;
-    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(reqwest::Client::new)
+fn http_client(timeout_secs: u64) -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .context("failed to build HTTP client")
 }
 
 pub async fn classify(config: &TriageConfig, prompt: &str) -> Result<String> {
@@ -65,7 +66,7 @@ async fn classify_anthropic(config: &TriageConfig, prompt: &str) -> Result<Strin
         "messages": [{"role": "user", "content": prompt}]
     });
 
-    let response = http_client()
+    let response = http_client(config.triage_timeout)?
         .post(url)
         .header("x-api-key", &api_key)
         .header("anthropic-version", "2023-06-01")
@@ -118,7 +119,7 @@ async fn classify_openai(config: &TriageConfig, prompt: &str) -> Result<String> 
         "messages": [{"role": "user", "content": prompt}]
     });
 
-    let response = http_client()
+    let response = http_client(config.triage_timeout)?
         .post(&url)
         .header("Authorization", format!("Bearer {}", api_key))
         .header("content-type", "application/json")
