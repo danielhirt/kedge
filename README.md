@@ -261,7 +261,16 @@ agent_env = { GITLAB_TOKEN = "${GITLAB_TOKEN}", DOCS_REPO = "git@gitlab.example.
 
 **`openai`** Any OpenAI-compatible endpoint (Azure OpenAI, vLLM, etc.). Requires `model`. If `api_url` ends with `/v1`, kedge appends `/chat/completions`.
 
-**`command`** Pipes the triage prompt to an external command via stdin. Set `triage_command` and, if needed, `triage_env`.
+**`command`** Pipes the triage prompt to an external command via stdin. Set `triage_command` and, if needed, `triage_env`. The command must print a JSON array to stdout:
+
+```json
+[
+  {"path": "src/Auth.java", "symbol": "Auth#validate", "severity": "minor"},
+  {"path": "src/Baz.java", "symbol": null, "severity": "no_update"}
+]
+```
+
+Each element needs `path`, `symbol` (string or null), and `severity` (`"no_update"`, `"minor"`, or `"major"`).
 
 ## Steering File Format
 

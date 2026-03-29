@@ -97,7 +97,16 @@ Controls AI-based severity classification.
 
 **`openai`**: Any OpenAI-compatible endpoint (Azure OpenAI, vLLM, local models). Default endpoint: `https://api.openai.com/v1/chat/completions`. If `api_url` ends with `/v1`, kedge appends `/chat/completions`. `model` is required. Default API key env var: `OPENAI_API_KEY`.
 
-**`command`**: Pipes the triage prompt to an external command via stdin. Set `triage_command` to the shell command. Use `triage_env` for extra environment variables. The command must print the classification JSON to stdout.
+**`command`**: Pipes the triage prompt to an external command via stdin. Set `triage_command` to the shell command. Use `triage_env` for extra environment variables. The command must print a JSON array to stdout classifying each anchor:
+
+```json
+[
+  {"path": "src/Auth.java", "symbol": "Auth#validate", "severity": "minor"},
+  {"path": "src/Baz.java", "symbol": null, "severity": "no_update"}
+]
+```
+
+Each element needs `path` (string), `symbol` (string or null), and `severity` (`"no_update"`, `"minor"`, or `"major"`). The response may optionally be wrapped in `` ```json `` fences — kedge strips them before parsing.
 
 ## `[remediation]`
 
