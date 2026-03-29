@@ -580,13 +580,23 @@ fn detect_drift_multiple_dirs_mixed_clean_and_drifted() {
         .unwrap();
 
     // Run detection on each
-    let report1 =
-        kedge::detection::detect_drift(dir.path(), docs_dir1.path(), &code_repo_url, "test-repo", &[])
-            .unwrap();
+    let report1 = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir1.path(),
+        &code_repo_url,
+        "test-repo",
+        &[],
+    )
+    .unwrap();
 
-    let report2 =
-        kedge::detection::detect_drift(dir.path(), docs_dir2.path(), &code_repo_url, "test-repo", &[])
-            .unwrap();
+    let report2 = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir2.path(),
+        &code_repo_url,
+        "test-repo",
+        &[],
+    )
+    .unwrap();
 
     // Merge
     let total_drifted = report1.drifted.len() + report2.drifted.len();
