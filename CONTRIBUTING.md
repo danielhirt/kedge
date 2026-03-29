@@ -17,7 +17,7 @@ cargo test
 
 ```bash
 cargo build                          # Debug build
-cargo test                           # All tests (225 across 17 suites)
+cargo test                           # All tests (234 across 17 suites)
 cargo test --test fingerprint_test   # Single test file
 cargo test -- test_name              # Single test function
 cargo clippy                         # Lint
