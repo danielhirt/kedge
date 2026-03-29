@@ -369,12 +369,20 @@ skill_dir = ""
             }
 
             let anchor_count: usize = drift_report.drifted.iter().map(|d| d.anchors.len()).sum();
-            eprintln!(
-                "Sending {} drifted anchor(s) across {} doc(s) to {} for triage...",
-                anchor_count,
-                drift_report.drifted.len(),
-                config.triage.provider,
-            );
+            if config.triage.provider == "none" {
+                eprintln!(
+                    "Skipping triage — forwarding {} drifted anchor(s) across {} doc(s) to agent...",
+                    anchor_count,
+                    drift_report.drifted.len(),
+                );
+            } else {
+                eprintln!(
+                    "Sending {} drifted anchor(s) across {} doc(s) to {} for triage...",
+                    anchor_count,
+                    drift_report.drifted.len(),
+                    config.triage.provider,
+                );
+            }
 
             let rt = tokio::runtime::Runtime::new().context("failed to create tokio runtime")?;
             let triaged = rt.block_on(kedge::triage::triage_drift_report(

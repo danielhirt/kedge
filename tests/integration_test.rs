@@ -521,6 +521,115 @@ fn update_no_stamp_summary_reports_deferred_docs() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// kedge update / triage with provider = "none" (skip triage)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn update_with_provider_none_skips_triage_and_invokes_agent() {
+    let (code_dir, docs_dir) = setup_code_and_docs();
+    let code_path = code_dir.path();
+
+    // Modify code to create drift
+    std::fs::write(
+        code_path.join("src/auth/Auth.java"),
+        "public class Auth { public boolean check(String t, List<String> scopes) { return true; } }",
+    )
+    .unwrap();
+    git_commit(code_path, "add scopes param");
+
+    // Config with provider = "none" — no triage_command needed
+    let config = format!(
+        "[detection]\n\n[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        code = code_path.display(),
+    );
+    std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "update"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "kedge update with provider=none failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Skipping triage"),
+        "should print skip message, got stderr: {}",
+        stderr
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Agent should have been invoked — doc appears in remediated
+    assert!(
+        stdout.contains("\"remediated\""),
+        "summary should include remediated section, got: {}",
+        stdout
+    );
+    assert!(
+        stdout.contains("auth.md"),
+        "remediated doc should appear in summary, got: {}",
+        stdout
+    );
+
+    // No provenance_advanced — nothing classified as no_update
+    let summary: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let advanced = summary["provenance_advanced"].as_array().unwrap();
+    assert!(
+        advanced.is_empty(),
+        "no docs should be auto-synced when triage is skipped, got: {:?}",
+        advanced
+    );
+}
+
+#[test]
+fn triage_with_provider_none_outputs_all_major() {
+    let dir = TempDir::new().unwrap();
+
+    let report = r#"{"repo":"test","ref":"main","commit":"abc123","drifted":[{"doc":"auth.md","doc_repo":"git@example.com:docs.git","anchors":[{"path":"src/Auth.java","symbol":"Auth#validate","provenance":"old1","current_sig":"sig:1111111111111111","current_commit":"abc123","diff_summary":"Added param","diff":"+param"},{"path":"src/Config.java","provenance":"old2","current_sig":"sig:2222222222222222","current_commit":"abc123","diff_summary":"Changed","diff":"+change"}]}],"clean":[]}"#;
+    let report_path = dir.path().join("drift.json");
+    std::fs::write(&report_path, report).unwrap();
+
+    // Config with provider = "none"
+    let config = "[triage]\nprovider = \"none\"\n\n[remediation]\nagent_command = \"echo done\"\n\n[[repos.docs]]\nurl = \"file:///tmp/dummy\"\npath = \"\"\nref = \"main\"\n";
+    std::fs::write(dir.path().join("kedge.toml"), config).unwrap();
+
+    let output = Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["--config", "kedge.toml", "triage", "--report"])
+        .arg(&report_path)
+        .current_dir(dir.path())
+        .env("KEDGE_DOCS_PATH", dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "kedge triage with provider=none failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let triaged: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+
+    // All anchors should be major
+    let anchors = triaged["drifted"][0]["anchors"].as_array().unwrap();
+    assert_eq!(anchors.len(), 2);
+    assert_eq!(anchors[0]["severity"], "major");
+    assert_eq!(anchors[1]["severity"], "major");
+
+    // Doc-level severity should be major
+    assert_eq!(triaged["drifted"][0]["severity"], "major");
+}
+
 #[test]
 fn update_no_stamp_does_not_affect_agent_invocation() {
     let (code_dir, docs_dir) = setup_code_and_docs();

@@ -283,6 +283,124 @@ fn parse_response_rejects_json_object_instead_of_array() {
     assert!(triage::parse_triage_response(response).is_err());
 }
 
+// --- promote_drift_report (provider = "none") ---
+
+#[test]
+fn promote_drift_report_sets_all_anchors_to_major() {
+    let drift_report = DriftReport {
+        repo: "test".to_string(),
+        git_ref: "main".to_string(),
+        commit: "abc123".to_string(),
+        drifted: vec![
+            DriftedDoc {
+                doc: "auth.md".to_string(),
+                doc_repo: "git@example.com:docs.git".to_string(),
+                anchors: vec![
+                    DriftedAnchor {
+                        path: "src/Auth.java".to_string(),
+                        symbol: Some("Auth#validate".to_string()),
+                        provenance: "old1".to_string(),
+                        current_sig: "sig:1111111111111111".to_string(),
+                        current_commit: "abc123".to_string(),
+                        diff_summary: "Added param".to_string(),
+                        diff: "+param".to_string(),
+                    },
+                    DriftedAnchor {
+                        path: "src/Auth.java".to_string(),
+                        symbol: Some("Auth#refresh".to_string()),
+                        provenance: "old2".to_string(),
+                        current_sig: "sig:2222222222222222".to_string(),
+                        current_commit: "abc123".to_string(),
+                        diff_summary: "Whitespace".to_string(),
+                        diff: " ".to_string(),
+                    },
+                ],
+            },
+            DriftedDoc {
+                doc: "billing.md".to_string(),
+                doc_repo: "git@example.com:docs.git".to_string(),
+                anchors: vec![DriftedAnchor {
+                    path: "src/Billing.java".to_string(),
+                    symbol: None,
+                    provenance: "old3".to_string(),
+                    current_sig: "sig:3333333333333333".to_string(),
+                    current_commit: "abc123".to_string(),
+                    diff_summary: "Changed".to_string(),
+                    diff: "+change".to_string(),
+                }],
+            },
+        ],
+        clean: vec![],
+    };
+
+    let triaged = triage::promote_drift_report(&drift_report);
+
+    assert_eq!(triaged.drifted.len(), 2);
+    // All doc-level severities are Major
+    assert_eq!(triaged.drifted[0].severity, Severity::Major);
+    assert_eq!(triaged.drifted[1].severity, Severity::Major);
+    // All anchor-level severities are Major
+    assert_eq!(triaged.drifted[0].anchors[0].severity, Severity::Major);
+    assert_eq!(triaged.drifted[0].anchors[1].severity, Severity::Major);
+    assert_eq!(triaged.drifted[1].anchors[0].severity, Severity::Major);
+    // Report-level fields preserved
+    assert_eq!(triaged.repo, "test");
+    assert_eq!(triaged.git_ref, "main");
+    assert_eq!(triaged.commit, "abc123");
+}
+
+#[test]
+fn promote_drift_report_preserves_anchor_fields() {
+    let drift_report = DriftReport {
+        repo: "test".to_string(),
+        git_ref: "main".to_string(),
+        commit: "abc123".to_string(),
+        drifted: vec![DriftedDoc {
+            doc: "auth.md".to_string(),
+            doc_repo: "git@example.com:docs.git".to_string(),
+            anchors: vec![DriftedAnchor {
+                path: "src/Auth.java".to_string(),
+                symbol: Some("Auth#validate".to_string()),
+                provenance: "sig:oldoldoldoldold1".to_string(),
+                current_sig: "sig:newnewnewnewnew1".to_string(),
+                current_commit: "def456".to_string(),
+                diff_summary: "Added scopes param".to_string(),
+                diff: "+public boolean validate(String t, List<String> scopes)".to_string(),
+            }],
+        }],
+        clean: vec![],
+    };
+
+    let triaged = triage::promote_drift_report(&drift_report);
+    let anchor = &triaged.drifted[0].anchors[0];
+
+    assert_eq!(anchor.path, "src/Auth.java");
+    assert_eq!(anchor.symbol.as_deref(), Some("Auth#validate"));
+    assert_eq!(anchor.provenance, "sig:oldoldoldoldold1");
+    assert_eq!(anchor.current_sig, "sig:newnewnewnewnew1");
+    assert_eq!(
+        anchor.diff,
+        "+public boolean validate(String t, List<String> scopes)"
+    );
+    assert_eq!(triaged.drifted[0].doc, "auth.md");
+    assert_eq!(triaged.drifted[0].doc_repo, "git@example.com:docs.git");
+}
+
+#[test]
+fn promote_drift_report_empty_report() {
+    let drift_report = DriftReport {
+        repo: "test".to_string(),
+        git_ref: "main".to_string(),
+        commit: "abc123".to_string(),
+        drifted: vec![],
+        clean: vec![],
+    };
+
+    let triaged = triage::promote_drift_report(&drift_report);
+    assert!(triaged.drifted.is_empty());
+    assert_eq!(triaged.repo, "test");
+}
+
 // --- apply_classifications: current_sig passthrough ---
 
 #[test]

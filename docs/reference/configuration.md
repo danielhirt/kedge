@@ -76,7 +76,7 @@ Controls AI-based severity classification.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | string | `"command"` | AI provider: `"anthropic"`, `"openai"`, or `"command"`. |
+| `provider` | string | `"command"` | AI provider: `"anthropic"`, `"openai"`, `"command"`, or `"none"`. |
 | `model` | string | `""` | Model ID. Required for `anthropic` and `openai` providers. Example: `"claude-haiku-4-5-20251001"`. |
 | `api_url` | string | provider default | Custom API endpoint URL. Use for enterprise proxies or API gateways. |
 | `api_key_env` | string | `"ANTHROPIC_API_KEY"` or `"OPENAI_API_KEY"` | Name of the environment variable holding the API key. |
@@ -100,6 +100,8 @@ Controls AI-based severity classification.
 ```
 
 Each element needs `path` (string), `symbol` (string or null), and `severity` (`"no_update"`, `"minor"`, or `"major"`). The response may optionally be wrapped in `` ```json `` fences — kedge strips them before parsing.
+
+**`none`**: Skips classification. All drifted anchors are set to `major` severity and forwarded to the remediation agent. Use this when your agent handles severity decisions based on org-specific rules. No API key, model, or triage command is needed.
 
 ## `[remediation]`
 

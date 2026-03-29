@@ -153,11 +153,53 @@ pub fn apply_classifications(
     }
 }
 
+/// Convert a DriftReport to a TriagedReport with all anchors set to Major.
+/// Used when provider = "none" — the agent handles classification instead.
+pub fn promote_drift_report(drift_report: &DriftReport) -> TriagedReport {
+    let drifted: Vec<TriagedDoc> = drift_report
+        .drifted
+        .iter()
+        .map(|drifted_doc| {
+            let triaged_anchors: Vec<TriagedAnchor> = drifted_doc
+                .anchors
+                .iter()
+                .map(|anchor| TriagedAnchor {
+                    path: anchor.path.clone(),
+                    symbol: anchor.symbol.clone(),
+                    severity: Severity::Major,
+                    provenance: anchor.provenance.clone(),
+                    current_sig: anchor.current_sig.clone(),
+                    diff: anchor.diff.clone(),
+                })
+                .collect();
+
+            TriagedDoc {
+                doc: drifted_doc.doc.clone(),
+                doc_repo: drifted_doc.doc_repo.clone(),
+                severity: Severity::Major,
+                summary: "triage skipped — all anchors forwarded to agent".to_string(),
+                anchors: triaged_anchors,
+            }
+        })
+        .collect();
+
+    TriagedReport {
+        repo: drift_report.repo.clone(),
+        git_ref: drift_report.git_ref.clone(),
+        commit: drift_report.commit.clone(),
+        drifted,
+    }
+}
+
 pub async fn triage_drift_report(
     drift_report: &DriftReport,
     triage_config: &crate::config::TriageConfig,
     doc_contents: &std::collections::HashMap<String, String>,
 ) -> Result<TriagedReport> {
+    if triage_config.provider == "none" {
+        return Ok(promote_drift_report(drift_report));
+    }
+
     let mut all_classifications: Vec<AnchorClassification> = Vec::new();
     let mut summary_parts: Vec<String> = Vec::new();
 

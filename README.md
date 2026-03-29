@@ -94,7 +94,7 @@ kedge update                # Full pipeline: detect -> triage -> agent -> MR
 # exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
-provider = "anthropic"                # "anthropic", "openai", or "command"
+provider = "anthropic"                # "anthropic", "openai", "command", or "none"
 model = "claude-haiku-4-5-20251001"   # required for anthropic/openai providers
 # api_url = ""                        # custom API endpoint (enterprise proxy/gateway)
 # api_key_env = ""                    # env var name for API key (default: ANTHROPIC_API_KEY or OPENAI_API_KEY)
@@ -139,7 +139,7 @@ skill_dir = ""
 | Section | Field | Default | Description |
 |---------|-------|---------|-------------|
 | `[detection]` | `exclude_dirs` | `.git`, `node_modules`, ... | Directories to skip when scanning for docs |
-| `[triage]` | `provider` | `"command"` | AI provider: `anthropic`, `openai`, or `command` |
+| `[triage]` | `provider` | `"command"` | AI provider: `anthropic`, `openai`, `command`, or `none` |
 | | `model` | | Model ID (required for `anthropic`/`openai`) |
 | | `api_url` | provider default | Custom API endpoint for enterprise proxies |
 | | `api_key_env` | `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` | Env var name holding the API key |
@@ -268,6 +268,8 @@ agent_env = { GITLAB_TOKEN = "${GITLAB_TOKEN}", DOCS_REPO = "git@gitlab.example.
 ```
 
 Each element needs `path`, `symbol` (string or null), and `severity` (`"no_update"`, `"minor"`, or `"major"`).
+
+**`none`** Skips classification. All drifted anchors are set to `major` and forwarded to the remediation agent. Use this when your agent handles severity decisions based on org-specific rules.
 
 ## Steering File Format
 
