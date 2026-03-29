@@ -31,6 +31,7 @@ pub struct DriftedAnchor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     pub provenance: String,
+    pub current_sig: String,
     pub current_commit: String,
     pub diff_summary: String,
     pub diff: String,
@@ -74,6 +75,7 @@ pub struct TriagedAnchor {
     pub symbol: Option<String>,
     pub severity: Severity,
     pub provenance: String,
+    pub current_sig: String,
     pub diff: String,
 }
 
@@ -108,6 +110,7 @@ pub struct AgentAnchor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     pub severity: Severity,
+    pub current_sig: String,
     pub summary: String,
     pub diff: String,
 }

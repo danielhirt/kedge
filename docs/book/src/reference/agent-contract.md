@@ -36,11 +36,12 @@ When `batch = false` (the default), kedge invokes the agent once per drifted doc
       "path": "src/auth/AuthService.java",
       "symbol": "AuthService#validateToken",
       "severity": "minor",
+      "current_sig": "sig:a1b2c3d4e5f67890",
       "summary": "auth-validation.md: 1 anchor(s) classified",
       "diff": "--- a/src/auth/AuthService.java\n+++ b/src/auth/AuthService.java\n@@ -42,7 +42,8 @@..."
     }
   ],
-  "instructions": "Update documentation for commit abc123def. Apply the changes described in the drifted anchors and stamp provenance with abc123def."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating, set each anchor's provenance in the frontmatter to the corresponding current_sig value."
 }
 ```
 
@@ -58,6 +59,7 @@ When `batch = false` (the default), kedge invokes the agent once per drifted doc
 | `drifted_anchors[].path` | string | Code file path. |
 | `drifted_anchors[].symbol` | string or null | Symbol within the file, if scoped. |
 | `drifted_anchors[].severity` | string | Anchor-level severity. |
+| `drifted_anchors[].current_sig` | string | The current code fingerprint (`sig:...`). The agent should write this as the new `provenance` value in the steering file's frontmatter. |
 | `drifted_anchors[].summary` | string | Human-readable summary of the triage result. |
 | `drifted_anchors[].diff` | string | Git diff of the changes (empty for `sig:` provenance). |
 | `instructions` | string | Natural-language instructions for the agent. Uses `agent_instructions` from config if set, otherwise a default. |
@@ -90,14 +92,14 @@ When `batch = true`, kedge sends all drifted docs in a single invocation.
       "drifted_anchors": [...]
     }
   ],
-  "instructions": "Update documentation for commit abc123def..."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating, set each anchor's provenance in the frontmatter to the corresponding current_sig value."
 }
 ```
 
 In batch mode:
 - `action` is `"update_docs_batch"`
 - `auto_merge` is `true` only if **every** target qualifies individually
-- Each element in `targets` has the same structure as the per-doc `target` + `severity` + `drifted_anchors`
+- Each element in `targets` has the same structure as the per-doc `target` + `severity` + `drifted_anchors` (including `current_sig` on each anchor)
 
 ## Response format
 

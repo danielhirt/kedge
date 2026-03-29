@@ -7,6 +7,7 @@ fn make_anchor(path: &str, symbol: Option<&str>, severity: Severity) -> TriagedA
         symbol: symbol.map(|s| s.to_string()),
         severity,
         provenance: "prov".to_string(),
+        current_sig: "sig:abcdef1234567890".to_string(),
         diff: "+changed".to_string(),
     }
 }

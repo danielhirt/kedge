@@ -14,18 +14,18 @@ fn drifted_agent_anchors(doc: &TriagedDoc) -> Vec<AgentAnchor> {
             path: a.path.clone(),
             symbol: a.symbol.clone(),
             severity: a.severity,
+            current_sig: a.current_sig.clone(),
             summary: doc.summary.clone(),
             diff: a.diff.clone(),
         })
         .collect()
 }
 
-const DEFAULT_INSTRUCTIONS: &str =
-    "Update the documentation to reflect the code changes described in the drifted anchors.";
+const DEFAULT_INSTRUCTIONS: &str = "Update the documentation to reflect the code changes described in the drifted anchors. After updating, set each anchor's provenance in the frontmatter to the corresponding current_sig value.";
 
 pub fn build_agent_payload(
     doc: &TriagedDoc,
-    current_commit: &str,
+    _current_commit: &str,
     auto_merge: bool,
     custom_instructions: &str,
 ) -> AgentPayload {
@@ -69,7 +69,7 @@ pub fn partition_by_action(report: &TriagedReport) -> (Vec<&TriagedDoc>, Vec<&Tr
 /// `auto_merge` is true only if every target qualifies individually.
 pub fn build_batch_agent_payload(
     docs: &[&TriagedDoc],
-    current_commit: &str,
+    _current_commit: &str,
     auto_merge_severities: &[String],
     custom_instructions: &str,
 ) -> crate::models::BatchAgentPayload {

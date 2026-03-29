@@ -75,7 +75,7 @@ pub fn detect_drift(
             safety::validate_path_within_canon(&canon_repo, &anchor_file)
                 .with_context(|| format!("anchor path in {}", doc.path))?;
 
-            let is_drifted = if anchor.provenance.starts_with(SIG_PREFIX) {
+            let (is_drifted, head_sig) = if anchor.provenance.starts_with(SIG_PREFIX) {
                 // No git history needed — compare fingerprint directly
                 let current_content = std::fs::read_to_string(&anchor_file).or_else(|_| {
                     // Fall back to reading from HEAD commit
@@ -83,7 +83,8 @@ pub fn detect_drift(
                 })?;
 
                 let current_sig = compute_sig(&current_content, &anchor.path, symbol);
-                current_sig != anchor.provenance
+                let drifted = current_sig != anchor.provenance;
+                (drifted, current_sig)
             } else {
                 let content_at_provenance =
                     read_file_at_rev(code_repo_path, &anchor.provenance, &anchor.path)?;
@@ -91,7 +92,7 @@ pub fn detect_drift(
 
                 let sig_provenance = compute_sig(&content_at_provenance, &anchor.path, symbol);
                 let sig_head = compute_sig(&content_at_head, &anchor.path, symbol);
-                sig_provenance != sig_head
+                (sig_provenance != sig_head, sig_head)
             };
 
             if is_drifted {
@@ -106,6 +107,7 @@ pub fn detect_drift(
                     path: anchor.path.clone(),
                     symbol: anchor.symbol.clone(),
                     provenance: anchor.provenance.clone(),
+                    current_sig: head_sig,
                     current_commit: current_sha.clone(),
                     diff_summary: diff_sum,
                     diff,

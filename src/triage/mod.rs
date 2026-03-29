@@ -108,6 +108,7 @@ pub fn apply_classifications(
                         symbol: anchor.symbol.clone(),
                         severity,
                         provenance: anchor.provenance.clone(),
+                        current_sig: anchor.current_sig.clone(),
                         diff: anchor.diff.clone(),
                     }
                 })

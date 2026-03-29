@@ -132,7 +132,7 @@ fn check_without_config_or_env_fails_with_helpful_error() {
 #[test]
 fn triage_without_config_fails_with_helpful_error() {
     let dir = TempDir::new().unwrap();
-    let report = r#"{"repo":"t","ref":"HEAD","commit":"abc","drifted":[{"doc":"a.md","doc_repo":"r","anchors":[{"path":"f.java","provenance":"abc1234","current_commit":"def","diff_summary":"s","diff":"d"}]}],"clean":[]}"#;
+    let report = r#"{"repo":"t","ref":"HEAD","commit":"abc","drifted":[{"doc":"a.md","doc_repo":"r","anchors":[{"path":"f.java","provenance":"abc1234","current_sig":"sig:0000000000000000","current_commit":"def","diff_summary":"s","diff":"d"}]}],"clean":[]}"#;
     let report_path = dir.path().join("drift.json");
     std::fs::write(&report_path, report).unwrap();
 
