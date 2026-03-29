@@ -360,3 +360,238 @@ fn detect_drift_rejects_invalid_provenance_format() {
         chain
     );
 }
+
+#[test]
+fn detect_drift_across_multiple_doc_dirs() {
+    // Create a code repo with two Java files in the same initial commit
+    let dir = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["config", "user.email", "test@test.com"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["config", "user.name", "Test"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    std::fs::create_dir_all(dir.path().join("src/auth")).unwrap();
+    std::fs::write(
+        dir.path().join("src/auth/AuthService.java"),
+        "public class AuthService { public boolean validate(String t) { return true; } }",
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.path().join("src/api")).unwrap();
+    std::fs::write(
+        dir.path().join("src/api/ApiController.java"),
+        "public class ApiController { public void handle() {} }",
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "initial with both files"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    let sha = String::from_utf8(output.stdout).unwrap().trim().to_string();
+
+    let code_repo_url = format!("file://{}", dir.path().display());
+
+    // Doc dir 1: anchors to AuthService
+    let docs_dir1 = TempDir::new().unwrap();
+    let steering1 = format!(
+        "---\nkedge:\n  group: auth\n  anchors:\n    - repo: \"{repo}\"\n      path: src/auth/AuthService.java\n      provenance: {sha}\n---\n\n# Auth docs\n",
+        repo = code_repo_url,
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir1.path().join("auth")).unwrap();
+    std::fs::write(docs_dir1.path().join("auth/auth.md"), &steering1).unwrap();
+
+    // Doc dir 2: anchors to ApiController
+    let docs_dir2 = TempDir::new().unwrap();
+    let steering2 = format!(
+        "---\nkedge:\n  group: api\n  anchors:\n    - repo: \"{repo}\"\n      path: src/api/ApiController.java\n      provenance: {sha}\n---\n\n# API docs\n",
+        repo = code_repo_url,
+        sha = sha,
+    );
+    std::fs::create_dir_all(docs_dir2.path().join("api")).unwrap();
+    std::fs::write(docs_dir2.path().join("api/api.md"), &steering2).unwrap();
+
+    // Now modify both files to trigger drift
+    std::fs::write(
+        dir.path().join("src/auth/AuthService.java"),
+        "public class AuthService { public boolean validate(String t, List<String> scopes) { return true; } }",
+    ).unwrap();
+    std::fs::write(
+        dir.path().join("src/api/ApiController.java"),
+        "public class ApiController { public void handle(Request req) {} }",
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "modify both files"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    // Run detect_drift on each doc dir and merge (mimicking multi-repo check)
+    let report1 = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir1.path().join("auth"),
+        &code_repo_url,
+        "test-repo",
+        &[],
+    )
+    .unwrap();
+
+    let report2 = kedge::detection::detect_drift(
+        dir.path(),
+        docs_dir2.path().join("api"),
+        &code_repo_url,
+        "test-repo",
+        &[],
+    )
+    .unwrap();
+
+    // Each should have one drifted doc
+    assert_eq!(
+        report1.drifted.len(),
+        1,
+        "report1 should have 1 drifted doc"
+    );
+    assert_eq!(
+        report2.drifted.len(),
+        1,
+        "report2 should have 1 drifted doc"
+    );
+
+    // Merge reports
+    let mut merged_drifted = report1.drifted;
+    merged_drifted.extend(report2.drifted);
+    let mut merged_clean = report1.clean;
+    merged_clean.extend(report2.clean);
+
+    // Merged report should have drifted docs from both dirs
+    assert_eq!(merged_drifted.len(), 2, "merged should have 2 drifted docs");
+    assert!(merged_clean.is_empty(), "no clean docs expected");
+
+    // Verify the drifted docs reference different files
+    let drifted_paths: Vec<&str> = merged_drifted
+        .iter()
+        .flat_map(|d| d.anchors.iter().map(|a| a.path.as_str()))
+        .collect();
+    assert!(
+        drifted_paths.contains(&"src/auth/AuthService.java"),
+        "should contain auth anchor"
+    );
+    assert!(
+        drifted_paths.contains(&"src/api/ApiController.java"),
+        "should contain api anchor"
+    );
+}
+
+#[test]
+fn detect_drift_multiple_dirs_mixed_clean_and_drifted() {
+    // Code repo with one file that will drift and one that won't
+    let (dir, _sha) = setup_git_repo(
+        "src/Stable.java",
+        "public class Stable { public void run() {} }",
+    );
+    std::fs::create_dir_all(dir.path().join("src")).unwrap();
+    std::fs::write(
+        dir.path().join("src/Changing.java"),
+        "public class Changing { public void exec() {} }",
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "add changing"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    // Get the SHA after both files are committed
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    let both_sha = String::from_utf8(output.stdout).unwrap().trim().to_string();
+
+    let code_repo_url = format!("file://{}", dir.path().display());
+
+    // Doc dir 1: anchors to Stable.java (will remain clean)
+    let docs_dir1 = TempDir::new().unwrap();
+    let steering1 = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{repo}\"\n      path: src/Stable.java\n      provenance: {sha}\n---\n\n# Stable docs\n",
+        repo = code_repo_url,
+        sha = both_sha,
+    );
+    std::fs::write(docs_dir1.path().join("stable.md"), &steering1).unwrap();
+
+    // Doc dir 2: anchors to Changing.java (will drift)
+    let docs_dir2 = TempDir::new().unwrap();
+    let steering2 = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{repo}\"\n      path: src/Changing.java\n      provenance: {sha}\n---\n\n# Changing docs\n",
+        repo = code_repo_url,
+        sha = both_sha,
+    );
+    std::fs::write(docs_dir2.path().join("changing.md"), &steering2).unwrap();
+
+    // Only modify Changing.java
+    std::fs::write(
+        dir.path().join("src/Changing.java"),
+        "public class Changing { public void exec(String arg) {} }",
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "modify changing"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    // Run detection on each
+    let report1 =
+        kedge::detection::detect_drift(dir.path(), docs_dir1.path(), &code_repo_url, "test-repo", &[])
+            .unwrap();
+
+    let report2 =
+        kedge::detection::detect_drift(dir.path(), docs_dir2.path(), &code_repo_url, "test-repo", &[])
+            .unwrap();
+
+    // Merge
+    let total_drifted = report1.drifted.len() + report2.drifted.len();
+    let total_clean = report1.clean.len() + report2.clean.len();
+
+    assert_eq!(total_clean, 1, "one doc should be clean (Stable)");
+    assert_eq!(total_drifted, 1, "one doc should be drifted (Changing)");
+}

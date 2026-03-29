@@ -61,6 +61,45 @@ fn resolve_docs_path(config: &kedge::config::Config) -> anyhow::Result<std::path
     }
 }
 
+fn resolve_all_docs_paths(
+    config: &kedge::config::Config,
+) -> anyhow::Result<Vec<std::path::PathBuf>> {
+    if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+        return Ok(vec![std::path::PathBuf::from(p)]);
+    }
+
+    if config.repos.docs.is_empty() {
+        anyhow::bail!("no docs repos configured in kedge.toml");
+    }
+
+    let mut paths = Vec::new();
+    for doc_repo in &config.repos.docs {
+        let cached = kedge::install::repo_cache::get_or_clone(
+            &doc_repo.url,
+            &doc_repo.git_ref,
+            config.repos.git_timeout,
+            &doc_repo.remote_name,
+        )
+        .with_context(|| {
+            format!(
+                "failed to clone docs repo {}",
+                kedge::safety::sanitize_url(&doc_repo.url)
+            )
+        })?;
+
+        let resolved = if doc_repo.path.is_empty() {
+            cached
+        } else {
+            let p = cached.join(&doc_repo.path);
+            kedge::safety::validate_path_within(&cached, &p)
+                .context("docs repo path escapes cache directory")?;
+            p
+        };
+        paths.push(resolved);
+    }
+    Ok(paths)
+}
+
 fn stamp_anchors(
     code_repo_path: &std::path::Path,
     doc_file: &std::path::Path,
@@ -202,26 +241,39 @@ skill_dir = ""
             let rn = repo_name(&code_repo_path);
             let cru = code_repo_url(&code_repo_path);
 
-            let (docs_path, exclude_dirs) = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
-                let exclude = kedge::config::Config::from_file(&cli.config)
-                    .map(|c| c.detection.exclude_dirs)
+            let config = kedge::config::Config::from_file(&cli.config)
+                .context("failed to load kedge.toml — run `kedge init` first");
+            let (docs_paths, exclude_dirs) = if let Ok(p) = std::env::var("KEDGE_DOCS_PATH") {
+                let exclude = config
+                    .as_ref()
+                    .map(|c| c.detection.exclude_dirs.clone())
                     .unwrap_or_else(|_| kedge::config::DetectionConfig::default().exclude_dirs);
-                (std::path::PathBuf::from(p), exclude)
+                (vec![std::path::PathBuf::from(p)], exclude)
             } else {
-                let config = kedge::config::Config::from_file(&cli.config)
-                    .context("failed to load kedge.toml — run `kedge init` first")?;
-                let exclude = config.detection.exclude_dirs.clone();
-                (resolve_docs_path(&config)?, exclude)
+                let cfg = config?;
+                let exclude = cfg.detection.exclude_dirs.clone();
+                (resolve_all_docs_paths(&cfg)?, exclude)
             };
 
-            let drift_report = kedge::detection::detect_drift(
-                &code_repo_path,
-                &docs_path,
-                &cru,
-                &rn,
-                &exclude_dirs,
-            )?;
+            let mut merged_report: Option<kedge::models::DriftReport> = None;
+            for docs_path in &docs_paths {
+                let report = kedge::detection::detect_drift(
+                    &code_repo_path,
+                    docs_path,
+                    &cru,
+                    &rn,
+                    &exclude_dirs,
+                )?;
+                match &mut merged_report {
+                    Some(existing) => {
+                        existing.drifted.extend(report.drifted);
+                        existing.clean.extend(report.clean);
+                    }
+                    None => merged_report = Some(report),
+                }
+            }
 
+            let drift_report = merged_report.context("no drift report generated")?;
             let json = serde_json::to_string_pretty(&drift_report)?;
 
             match &report {
@@ -276,15 +328,27 @@ skill_dir = ""
             let rn = repo_name(&code_repo_path);
             let cru = code_repo_url(&code_repo_path);
 
-            let docs_path = resolve_docs_path(&config)?;
+            let docs_paths = resolve_all_docs_paths(&config)?;
 
-            let drift_report = kedge::detection::detect_drift(
-                &code_repo_path,
-                &docs_path,
-                &cru,
-                &rn,
-                &config.detection.exclude_dirs,
-            )?;
+            let mut merged_report: Option<kedge::models::DriftReport> = None;
+            for docs_path in &docs_paths {
+                let sub_report = kedge::detection::detect_drift(
+                    &code_repo_path,
+                    docs_path,
+                    &cru,
+                    &rn,
+                    &config.detection.exclude_dirs,
+                )?;
+                match &mut merged_report {
+                    Some(existing) => {
+                        existing.drifted.extend(sub_report.drifted);
+                        existing.clean.extend(sub_report.clean);
+                    }
+                    None => merged_report = Some(sub_report),
+                }
+            }
+
+            let drift_report = merged_report.context("no drift report generated")?;
 
             if let Some(path) = &report {
                 let json = serde_json::to_string_pretty(&drift_report)?;
@@ -298,7 +362,11 @@ skill_dir = ""
             }
 
             let current_commit = drift_report.commit.clone();
-            let doc_contents = collect_doc_contents(&docs_path, &drift_report);
+            // Doc paths in DriftReport are absolute, so any base path works for join
+            let mut doc_contents = std::collections::HashMap::new();
+            for docs_path in &docs_paths {
+                doc_contents.extend(collect_doc_contents(docs_path, &drift_report));
+            }
 
             let anchor_count: usize = drift_report.drifted.iter().map(|d| d.anchors.len()).sum();
             eprintln!(
@@ -409,7 +477,7 @@ skill_dir = ""
             let provenance_advanced: Vec<kedge::models::ProvenanceSynced> = to_sync
                 .iter()
                 .map(|doc| {
-                    let doc_file = docs_path.join(&doc.doc);
+                    let doc_file = std::path::PathBuf::from(&doc.doc);
                     let anchors: Vec<kedge::models::Anchor> = doc
                         .anchors
                         .iter()

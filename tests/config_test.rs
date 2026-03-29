@@ -247,6 +247,38 @@ fn fixture_parses_with_default_remote_name() {
 }
 
 #[test]
+fn parses_multiple_doc_repos() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[[repos.docs]]
+url = "https://github.com/org/docs1.git"
+path = "steering/"
+ref = "main"
+
+[[repos.docs]]
+url = "https://github.com/org/docs2.git"
+path = "."
+ref = "develop"
+
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.repos.docs.len(), 2);
+    assert_eq!(config.repos.docs[0].url, "https://github.com/org/docs1.git");
+    assert_eq!(config.repos.docs[0].path, "steering/");
+    assert_eq!(config.repos.docs[0].git_ref, "main");
+    assert_eq!(config.repos.docs[1].url, "https://github.com/org/docs2.git");
+    assert_eq!(config.repos.docs[1].path, ".");
+    assert_eq!(config.repos.docs[1].git_ref, "develop");
+}
+
+#[test]
 fn missing_required_section_returns_error() {
     let toml = r#"
 [detection]
