@@ -192,3 +192,188 @@ fn apply_classifications_empty_classifications_all_default_to_no_update() {
     assert_eq!(triaged.drifted[0].anchors[1].severity, Severity::NoUpdate);
     assert_eq!(triaged.drifted[0].severity, Severity::NoUpdate);
 }
+
+// --- parse_triage_response edge cases ---
+
+#[test]
+fn parses_response_with_null_symbol() {
+    let response = r#"[{"path": "src/Config.java", "symbol": null, "severity": "minor"}]"#;
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 1);
+    assert!(classifications[0].symbol.is_none());
+    assert_eq!(classifications[0].severity, Severity::Minor);
+}
+
+#[test]
+fn parses_response_with_all_severity_levels() {
+    let response = r#"[
+        {"path": "a.java", "symbol": null, "severity": "no_update"},
+        {"path": "b.java", "symbol": null, "severity": "minor"},
+        {"path": "c.java", "symbol": null, "severity": "major"}
+    ]"#;
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 3);
+    assert_eq!(classifications[0].severity, Severity::NoUpdate);
+    assert_eq!(classifications[1].severity, Severity::Minor);
+    assert_eq!(classifications[2].severity, Severity::Major);
+}
+
+#[test]
+fn parses_response_with_leading_trailing_whitespace() {
+    let response =
+        "   \n\n  [{\"path\": \"a.java\", \"symbol\": null, \"severity\": \"major\"}]  \n  ";
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 1);
+    assert_eq!(classifications[0].severity, Severity::Major);
+}
+
+#[test]
+fn parses_response_with_bare_code_fences() {
+    // No "json" tag, just ```
+    let response = "```\n[{\"path\": \"a.java\", \"symbol\": null, \"severity\": \"minor\"}]\n```";
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 1);
+    assert_eq!(classifications[0].severity, Severity::Minor);
+}
+
+#[test]
+fn parses_response_with_multiple_anchors() {
+    let response = r#"[
+        {"path": "src/Auth.java", "symbol": "Auth#validate", "severity": "major"},
+        {"path": "src/Auth.java", "symbol": "Auth#refresh", "severity": "no_update"},
+        {"path": "src/Config.java", "symbol": null, "severity": "minor"}
+    ]"#;
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 3);
+    assert_eq!(classifications[0].path, "src/Auth.java");
+    assert_eq!(classifications[0].symbol.as_deref(), Some("Auth#validate"));
+    assert_eq!(classifications[2].path, "src/Config.java");
+    assert!(classifications[2].symbol.is_none());
+}
+
+#[test]
+fn parse_response_ignores_extra_fields() {
+    let response = r#"[{"path": "a.java", "symbol": null, "severity": "minor", "reasoning": "trivial change", "confidence": 0.95}]"#;
+    let classifications = triage::parse_triage_response(response).unwrap();
+    assert_eq!(classifications.len(), 1);
+    assert_eq!(classifications[0].severity, Severity::Minor);
+}
+
+#[test]
+fn parse_response_rejects_missing_path() {
+    let response = r#"[{"symbol": null, "severity": "minor"}]"#;
+    assert!(triage::parse_triage_response(response).is_err());
+}
+
+#[test]
+fn parse_response_rejects_missing_severity() {
+    let response = r#"[{"path": "a.java", "symbol": null}]"#;
+    assert!(triage::parse_triage_response(response).is_err());
+}
+
+#[test]
+fn parse_response_rejects_invalid_severity_value() {
+    let response = r#"[{"path": "a.java", "symbol": null, "severity": "critical"}]"#;
+    assert!(triage::parse_triage_response(response).is_err());
+}
+
+#[test]
+fn parse_response_rejects_json_object_instead_of_array() {
+    let response = r#"{"path": "a.java", "symbol": null, "severity": "minor"}"#;
+    assert!(triage::parse_triage_response(response).is_err());
+}
+
+// --- apply_classifications: current_sig passthrough ---
+
+#[test]
+fn apply_classifications_preserves_current_sig() {
+    let drift_report = DriftReport {
+        repo: "test".to_string(),
+        git_ref: "main".to_string(),
+        commit: "abc123".to_string(),
+        drifted: vec![DriftedDoc {
+            doc: "auth.md".to_string(),
+            doc_repo: "git@example.com:docs.git".to_string(),
+            anchors: vec![DriftedAnchor {
+                path: "src/Auth.java".to_string(),
+                symbol: Some("Auth#validate".to_string()),
+                provenance: "old_prov".to_string(),
+                current_sig: "sig:feedface12345678".to_string(),
+                current_commit: "abc123".to_string(),
+                diff_summary: "Changed".to_string(),
+                diff: "+change".to_string(),
+            }],
+        }],
+        clean: vec![],
+    };
+
+    let classifications = vec![triage::AnchorClassification {
+        path: "src/Auth.java".to_string(),
+        symbol: Some("Auth#validate".to_string()),
+        severity: Severity::Minor,
+    }];
+
+    let triaged = triage::apply_classifications(&drift_report, &classifications, "test");
+    assert_eq!(
+        triaged.drifted[0].anchors[0].current_sig,
+        "sig:feedface12345678"
+    );
+}
+
+// --- apply_classifications: multiple drifted docs ---
+
+#[test]
+fn apply_classifications_handles_multiple_docs() {
+    let drift_report = DriftReport {
+        repo: "test".to_string(),
+        git_ref: "main".to_string(),
+        commit: "abc123".to_string(),
+        drifted: vec![
+            DriftedDoc {
+                doc: "auth.md".to_string(),
+                doc_repo: "git@example.com:docs.git".to_string(),
+                anchors: vec![DriftedAnchor {
+                    path: "src/Auth.java".to_string(),
+                    symbol: None,
+                    provenance: "old".to_string(),
+                    current_sig: "sig:aaaa".to_string(),
+                    current_commit: "abc123".to_string(),
+                    diff_summary: "Changed".to_string(),
+                    diff: "+a".to_string(),
+                }],
+            },
+            DriftedDoc {
+                doc: "billing.md".to_string(),
+                doc_repo: "git@example.com:docs.git".to_string(),
+                anchors: vec![DriftedAnchor {
+                    path: "src/Billing.java".to_string(),
+                    symbol: Some("Billing#charge".to_string()),
+                    provenance: "old".to_string(),
+                    current_sig: "sig:bbbb".to_string(),
+                    current_commit: "abc123".to_string(),
+                    diff_summary: "Changed".to_string(),
+                    diff: "+b".to_string(),
+                }],
+            },
+        ],
+        clean: vec![],
+    };
+
+    let classifications = vec![
+        triage::AnchorClassification {
+            path: "src/Auth.java".to_string(),
+            symbol: None,
+            severity: Severity::Minor,
+        },
+        triage::AnchorClassification {
+            path: "src/Billing.java".to_string(),
+            symbol: Some("Billing#charge".to_string()),
+            severity: Severity::Major,
+        },
+    ];
+
+    let triaged = triage::apply_classifications(&drift_report, &classifications, "test");
+    assert_eq!(triaged.drifted.len(), 2);
+    assert_eq!(triaged.drifted[0].severity, Severity::Minor);
+    assert_eq!(triaged.drifted[1].severity, Severity::Major);
+}
