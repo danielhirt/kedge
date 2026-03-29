@@ -261,6 +261,7 @@ fn java_project_install_copies_group_and_shared() {
         Some("payments-platform"),
         Some("AGENTS.md"),
         None,
+        false,
     )
     .unwrap();
 
@@ -292,6 +293,7 @@ fn java_project_install_filters_by_security_group() {
         Some("platform-security"),
         None,
         None,
+        false,
     )
     .unwrap();
 

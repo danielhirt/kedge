@@ -1,7 +1,7 @@
 pub mod repo_cache;
 
 use anyhow::{Context, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::safety;
 
@@ -11,6 +11,39 @@ enum InstallMode {
     Link,
 }
 
+/// Collect `.md` files from a directory, optionally recursing into subdirectories.
+/// Returns `(absolute_path, relative_path_from_base)` pairs.
+fn walk_md_files(dir: &Path, recursive: bool) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let mut result = Vec::new();
+    walk_md_files_inner(dir, dir, recursive, &mut result)?;
+    Ok(result)
+}
+
+fn walk_md_files_inner(
+    base: &Path,
+    current: &Path,
+    recursive: bool,
+    result: &mut Vec<(PathBuf, PathBuf)>,
+) -> Result<()> {
+    for entry in std::fs::read_dir(current)
+        .with_context(|| format!("failed to read dir {}", current.display()))?
+    {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_symlink() {
+            eprintln!("warning: skipping symlink {}", path.display());
+            continue;
+        }
+        if path.is_dir() && recursive {
+            walk_md_files_inner(base, &path, recursive, result)?;
+        } else if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
+            let rel = path.strip_prefix(base).unwrap_or(&path).to_path_buf();
+            result.push((path, rel));
+        }
+    }
+    Ok(())
+}
+
 fn install_steering(
     mode: &InstallMode,
     source_dir: &Path,
@@ -18,6 +51,7 @@ fn install_steering(
     group: Option<&str>,
     agents_file: Option<&str>,
     skill_dir: Option<&Path>,
+    recursive: bool,
 ) -> Result<()> {
     if let Some(group_name) = group {
         safety::validate_bare_name(group_name, "group")?;
@@ -45,19 +79,12 @@ fn install_steering(
     };
 
     let place_md_files = |src_dir: &Path| -> Result<()> {
-        for entry in std::fs::read_dir(src_dir)
-            .with_context(|| format!("failed to read dir {}", src_dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_symlink() {
-                eprintln!("warning: skipping symlink {}", path.display());
-                continue;
+        for (src_path, rel_path) in walk_md_files(src_dir, recursive)? {
+            let dst = target_dir.join(&rel_path);
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
             }
-            if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
-                let dst = target_dir.join(path.file_name().unwrap());
-                place_file(&path, &dst)?;
-            }
+            place_file(&src_path, &dst)?;
         }
         Ok(())
     };
@@ -101,6 +128,7 @@ pub fn install_to_workspace(
     group: Option<&str>,
     agents_file: Option<&str>,
     skill_dir: Option<&Path>,
+    recursive: bool,
 ) -> Result<()> {
     install_steering(
         &InstallMode::Copy,
@@ -109,6 +137,7 @@ pub fn install_to_workspace(
         group,
         agents_file,
         skill_dir,
+        recursive,
     )
 }
 
@@ -119,6 +148,7 @@ pub fn install_as_links(
     group: Option<&str>,
     agents_file: Option<&str>,
     skill_dir: Option<&Path>,
+    recursive: bool,
 ) -> Result<()> {
     install_steering(
         &InstallMode::Link,
@@ -127,6 +157,7 @@ pub fn install_as_links(
         group,
         agents_file,
         skill_dir,
+        recursive,
     )
 }
 

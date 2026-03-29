@@ -79,5 +79,9 @@ pub enum Command {
         /// Only sync if stale (compares against doc repo HEAD)
         #[arg(long)]
         check: bool,
+
+        /// Recursively include files from subdirectories within group/shared folders
+        #[arg(long)]
+        recursive: bool,
     },
 }
