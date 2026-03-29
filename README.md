@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/book/src/assets/logo.png" alt="kedge" width="500">
+  <img src="docs/assets/logo.png" alt="kedge" width="500">
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@ Three-layer pipeline:
 
 1. **Detection.** Compare AST fingerprints of code at provenance vs HEAD. Deterministic, no AI. Outputs a drift report.
 2. **Triage.** Classify each drifted anchor as `no_update`, `minor`, or `major` via a lightweight LLM call.
-3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes (pass `--no-stamp` in CI to defer this to `kedge sync`). kedge's pipeline ends when the agent returns. MR approval, CI, and merging are handled by your existing review workflows.
+3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes (pass `--no-stamp` in CI to defer this to `kedge sync`). kedge's pipeline ends when the agent returns. Your review workflows handle MR approval, CI, and merging.
 
 Any markdown file with `kedge:` frontmatter becomes a tracked doc: standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
 
@@ -338,7 +338,7 @@ kedge scans stdout for URLs starting with `https://` or `http://` and uses the f
 
 kedge has two independent workflows:
 
-**Drift pipeline** — run in your code repo to detect stale docs, triage severity, and invoke agents to open MRs.
+**Drift pipeline.** Run in your code repo to detect stale docs, triage severity, and invoke agents to open MRs.
 
 | Command | Description |
 |---------|-------------|
@@ -350,7 +350,7 @@ kedge has two independent workflows:
 | `kedge link [files...]` | Stamp content-addressed provenance on doc anchors |
 | `kedge sync [files...]` | Advance provenance without changing doc content |
 
-**Steering distribution** — copies or symlinks doc files from the docs repo into directories where agents read them. Independent of the drift pipeline. Use it to set up agent workspaces on dev machines or in CI before the agent runs.
+**Steering distribution.** Copies or symlinks doc files from the docs repo into directories where agents read them. Independent of the drift pipeline. Use it to set up agent workspaces on dev machines or in CI before the agent runs.
 
 | Command | Description |
 |---------|-------------|
@@ -384,7 +384,7 @@ AST fingerprinting (whitespace/comment immune, symbol-scoped):
 | Rust | `.rs` | `StructName#method_name` or `function_name` |
 | XML | `.xml` | (file-level only) |
 
-Other file types fall back to SHA-256 content hashing. The fallback hashes raw content, so whitespace and comment changes do register as drift.
+Other file types fall back to SHA-256 content hashing. The fallback hashes raw content, so whitespace and comment changes register as drift.
 
 ## Security
 
