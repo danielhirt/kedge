@@ -130,6 +130,17 @@ In batch mode:
 | `mr_urls` | string array (optional) | URLs of created merge requests (batch mode). |
 | `status` | string | Status indicator (informational, not parsed by kedge). |
 
+## After the agent returns
+
+kedge captures the MR URL from the agent's output, includes it in the `RemediationSummary`, and exits. kedge does not:
+
+- Monitor or poll MR status
+- Trigger CI pipelines on the docs repository
+- Merge the MR
+- Verify the agent's changes
+
+The `auto_merge` flag in the payload is a signal to the agent, not an action by kedge. It indicates that the drift severity qualifies for automatic merging based on the `auto_merge_severities` config. The agent decides whether to act on it (e.g., enabling auto-merge on the MR, merging immediately, or ignoring it).
+
 ### Plain text fallback
 
 If the agent's stdout is not valid JSON, kedge scans the output for URLs:

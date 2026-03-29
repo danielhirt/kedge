@@ -118,13 +118,15 @@ If the agent does not output valid JSON, kedge scans stdout for URLs starting wi
 
 ## Auto-merge
 
-The `auto_merge_severities` config controls which severity levels get `"auto_merge": true` in the payload. The agent decides what to do with this flag. In most cases, it means the MR can be merged without human review.
+The `auto_merge_severities` config controls which severity levels get `"auto_merge": true` in the payload.
 
 ```toml
 auto_merge_severities = ["no_update", "minor"]
 ```
 
 In batch mode, `auto_merge` is `true` only if **every** target qualifies individually.
+
+kedge passes the flag; the agent decides what to do with it (enable auto-merge on the MR, merge immediately, or ignore it). kedge exits after receiving the agent's response and does not monitor, merge, or verify MRs. MR lifecycle management — approval, CI, merging — belongs to your existing review workflows.
 
 ## Timeouts
 

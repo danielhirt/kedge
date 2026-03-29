@@ -163,6 +163,8 @@ kedge update --report drift.json   # also save the drift report
 }
 ```
 
+`mr_url` is the merge request URL returned by the agent. `auto_merged` reflects the `auto_merge` signal sent to the agent based on severity config. kedge does not monitor or act on MRs after this point.
+
 If no drift is detected, prints `"No drift detected."` and exits.
 
 ## `kedge status`

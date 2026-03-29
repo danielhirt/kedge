@@ -16,7 +16,7 @@ Three-layer pipeline:
 
 1. **Detection.** Compare AST fingerprints of code at provenance vs HEAD. Deterministic, no AI. Outputs a drift report.
 2. **Triage.** Classify each drifted anchor as `no_update`, `minor`, or `major` via a lightweight LLM call.
-3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes.
+3. **Remediation.** Invoke an external agent to update the docs and open an MR. `no_update` anchors get their provenance advanced without doc changes. kedge's pipeline ends when the agent returns. MR approval, CI, and merging are handled by your existing review workflows.
 
 Any markdown file with `kedge:` frontmatter becomes a tracked doc: standalone files, `AGENTS.md`, `CLAUDE.md`, or anything else. kedge calls these "steering files" (a term from Kiro), but the tool is agent-agnostic.
 
