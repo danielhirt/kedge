@@ -2,6 +2,8 @@
 
 kedge fits into GitLab CI in two ways: as an **MR gate** that blocks merges when docs drift, and as a **scheduled pipeline** that remediates drift.
 
+kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so CI pipelines only need the code repo checked out. No separate `git clone` step for docs.
+
 ## MR gate: block merges on drift
 
 Add `kedge check` to your merge request pipeline. It exits `1` when drift is detected, failing the pipeline:
@@ -14,14 +16,13 @@ kedge-check:
     - kedge check
   variables:
     KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
-    KEDGE_DOCS_PATH: /path/to/docs  # or omit to let kedge clone from [repos.docs]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
 ### How it works
 
-1. kedge reads steering files from `KEDGE_DOCS_PATH` (or clones the docs repo from `kedge.toml`)
+1. kedge clones the docs repo from `[[repos.docs]]` in `kedge.toml` (cached across runs in `~/.cache/kedge/repos/`)
 2. For each anchor, it computes the current AST fingerprint and compares it to the stored provenance
 3. If any anchor has drifted, the job fails with a JSON drift report on stdout
 
@@ -87,7 +88,8 @@ kedge detects CI environments by checking for `CI`, `GITHUB_ACTIONS`, or `GITLAB
 | Variable | Purpose |
 |----------|---------|
 | `KEDGE_CODE_REPO_URL` | Override the code repo URL (default: `file://<cwd>`) |
-| `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from config |
+| `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
+| `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup. |
 | `ANTHROPIC_API_KEY` | API key for Anthropic triage provider |
 | `OPENAI_API_KEY` | API key for OpenAI-compatible triage provider |
 

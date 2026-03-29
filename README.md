@@ -177,6 +177,8 @@ Total worst case: ~40 min per-doc mode, ~20 min batch mode.
 
 ## Enterprise CI Integration
 
+kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`. CI pipelines only need the code repo checked out.
+
 ### GitLab CI
 
 **MR pipeline** (gate on drift):
@@ -187,7 +189,6 @@ kedge-check:
   script:
     - kedge check
   variables:
-    KEDGE_DOCS_PATH: /path/to/docs     # or let kedge clone from [repos.docs]
     KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -242,8 +243,8 @@ jobs:
 | `ANTHROPIC_API_KEY` | If provider = `anthropic` | API key for Anthropic triage calls |
 | `OPENAI_API_KEY` | If provider = `openai` | API key for OpenAI-compatible triage calls |
 | `KEDGE_CODE_REPO_URL` | No | Override code repo URL (default: `file://<cwd>`) |
-| `KEDGE_DOCS_PATH` | No | Override docs path (skips clone from `[[repos.docs]]`) |
-| `KEDGE_DOCS_REPO_URL` | No | Override docs repo URL for agent payloads (default: code repo URL). Set this when docs live in a separate repo and you use `KEDGE_DOCS_PATH`. |
+| `KEDGE_DOCS_PATH` | No | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
+| `KEDGE_DOCS_REPO_URL` | No | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup (default: code repo URL). With `[[repos.docs]]`, the URL comes from config. |
 
 Pass extra env vars to the agent process via `agent_env` in `kedge.toml`:
 

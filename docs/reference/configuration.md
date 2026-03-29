@@ -208,8 +208,8 @@ These override config file settings when present.
 | Variable | Description |
 |----------|-------------|
 | `KEDGE_CODE_REPO_URL` | Override code repo URL (default: `file://<cwd>`). Used to match anchors. |
-| `KEDGE_DOCS_PATH` | Override docs path (skips clone from `[[repos.docs]]`). |
-| `KEDGE_DOCS_REPO_URL` | Override docs repo URL for agent payloads (default: code repo URL). Set this when docs live in a separate repo and you use `KEDGE_DOCS_PATH`. |
+| `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
+| `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup (default: code repo URL). With `[[repos.docs]]`, the URL comes from config. |
 | `ANTHROPIC_API_KEY` | API key for `anthropic` triage provider. |
 | `OPENAI_API_KEY` | API key for `openai` triage provider. |
 

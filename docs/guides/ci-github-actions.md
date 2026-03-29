@@ -2,6 +2,8 @@
 
 kedge integrates with GitHub Actions as a **push-triggered check** for drift detection and a **scheduled workflow** for full remediation.
 
+kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so workflows only need the code repo checked out. No separate checkout step for docs.
+
 ## Drift detection on push
 
 Run `kedge check` on every push to the default branch:
@@ -129,6 +131,7 @@ Store API keys as [repository secrets](https://docs.github.com/en/actions/securi
 | Variable | Purpose |
 |----------|---------|
 | `KEDGE_CODE_REPO_URL` | Override code repo URL (set to `${{ github.server_url }}/${{ github.repository }}`) |
-| `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from config |
+| `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
+| `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup. |
 
 kedge detects the `GITHUB_ACTIONS` environment variable and defaults `kedge install` to `--workspace` mode.

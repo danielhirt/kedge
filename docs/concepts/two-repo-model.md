@@ -64,12 +64,18 @@ When kedge runs in the code repo, it resolves the current repo URL (from `KEDGE_
 
 ### Cloning the docs repo
 
-kedge needs access to both repos during detection. It gets the docs repo by:
+kedge needs access to both repos during detection. Configure docs repos in `kedge.toml` under `[[repos.docs]]`. kedge clones them automatically. CI pipelines only need the code repo checked out.
 
-1. Checking `KEDGE_DOCS_PATH` env var (if set, uses that local path)
-2. Otherwise, cloning all `[[repos.docs]]` entries from `kedge.toml`
+```toml
+[[repos.docs]]
+url = "git@github.com:your-org/docs.git"
+path = "steering"
+ref = "main"
+```
 
-When multiple doc repos are configured, `kedge check` and `kedge update` scan all of them and merge the results into a single drift report. Cloned repos are cached in `~/.cache/kedge/repos/` and fetched on subsequent runs. The cache uses `0o700` permissions.
+When multiple doc repos are configured, `kedge check` and `kedge update` scan all of them and merge the results into a single drift report. Cloned repos are cached in `~/.cache/kedge/repos/` (keyed by URL and ref) and fetched on subsequent runs. The cache uses `0o700` permissions.
+
+Set `KEDGE_DOCS_PATH` to skip the clone and use a local directory instead. This is useful for local testing or monorepos. In a two-repo setup with `KEDGE_DOCS_PATH`, also set `KEDGE_DOCS_REPO_URL` so agent payloads contain the correct docs repo URL.
 
 ### `kedge install`
 
