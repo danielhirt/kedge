@@ -106,6 +106,8 @@ pub struct RemediationConfig {
     pub agent_timeout: u64,
     #[serde(default)]
     pub agent_env: HashMap<String, String>,
+    #[serde(default)]
+    pub agent_instructions: String,
 }
 
 fn default_agent_timeout() -> u64 {

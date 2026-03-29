@@ -24,12 +24,17 @@ pub fn build_agent_payload(
     doc: &TriagedDoc,
     current_commit: &str,
     auto_merge: bool,
+    custom_instructions: &str,
 ) -> AgentPayload {
-    let instructions = format!(
+    let mut instructions = format!(
         "Update documentation for commit {}. \
          Apply the changes described in the drifted anchors and stamp provenance with {}.",
         current_commit, current_commit
     );
+    if !custom_instructions.is_empty() {
+        instructions.push('\n');
+        instructions.push_str(custom_instructions);
+    }
 
     AgentPayload {
         action: ACTION_UPDATE_DOCS.to_string(),
@@ -67,6 +72,7 @@ pub fn build_batch_agent_payload(
     docs: &[&TriagedDoc],
     current_commit: &str,
     auto_merge_severities: &[String],
+    custom_instructions: &str,
 ) -> crate::models::BatchAgentPayload {
     let mut all_qualify_for_auto_merge = true;
     let mut targets: Vec<crate::models::BatchTarget> = Vec::with_capacity(docs.len());
@@ -86,11 +92,15 @@ pub fn build_batch_agent_payload(
         });
     }
 
-    let instructions = format!(
+    let mut instructions = format!(
         "Update documentation for commit {}. \
          Apply the changes described in each target's drifted anchors and stamp provenance with {}.",
         current_commit, current_commit
     );
+    if !custom_instructions.is_empty() {
+        instructions.push('\n');
+        instructions.push_str(custom_instructions);
+    }
 
     crate::models::BatchAgentPayload {
         action: ACTION_UPDATE_DOCS_BATCH.to_string(),

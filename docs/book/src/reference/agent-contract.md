@@ -60,7 +60,7 @@ When `batch = false` (the default), kedge invokes the agent once per drifted doc
 | `drifted_anchors[].severity` | string | Anchor-level severity. |
 | `drifted_anchors[].summary` | string | Human-readable summary of the triage result. |
 | `drifted_anchors[].diff` | string | Git diff of the changes (empty for `sig:` provenance). |
-| `instructions` | string | Natural-language instructions for the agent. |
+| `instructions` | string | Natural-language instructions for the agent. Includes the default stamping instruction plus any custom text from `agent_instructions` in config. |
 
 ## Batch payload
 

@@ -109,6 +109,7 @@ auto_merge_severities = ["no_update"]
 # batch = true                        # single agent invocation for all drifted docs
 # agent_timeout = 300                 # seconds, kills agent process if exceeded (default: 300)
 # agent_env = { }                     # extra env vars passed to agent process
+# agent_instructions = ""             # custom text appended to agent instructions
 
 [repos]
 # git_timeout = 300                   # seconds for clone/fetch operations (default: 300)
@@ -153,6 +154,7 @@ skill_dir = ""
 | | `batch` | `false` | Bundle all drifted docs into one agent call |
 | | `agent_timeout` | `300` | Seconds before agent process is killed |
 | | `agent_env` | `{}` | Extra env vars passed to agent |
+| | `agent_instructions` | `""` | Custom text appended to the agent payload instructions |
 | `[repos]` | `git_timeout` | `300` | Seconds for clone/fetch/ls-remote operations |
 | `[[repos.docs]]` | `url` | | Git URL of the documentation repository |
 | | `path` | | Subdirectory within docs repo for steering files |

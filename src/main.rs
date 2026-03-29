@@ -193,6 +193,7 @@ auto_merge_severities = ["no_update"]
 # batch = true        # single agent invocation for all drifted docs
 # agent_timeout = 300  # seconds, kills agent process if exceeded
 # agent_env = { }      # extra env vars passed to agent process
+# agent_instructions = ""  # extra instructions appended to agent payload
 
 [repos]
 # git_timeout = 300  # seconds for clone/fetch operations (default: 300)
@@ -393,6 +394,7 @@ skill_dir = ""
                     &to_remediate,
                     &current_commit,
                     &config.remediation.auto_merge_severities,
+                    &config.remediation.agent_instructions,
                 );
                 let batch_auto_merge = batch_payload.auto_merge;
                 let payload_json = serde_json::to_string(&batch_payload)
@@ -446,8 +448,12 @@ skill_dir = ""
                         doc.severity,
                         &config.remediation.auto_merge_severities,
                     );
-                    let payload =
-                        kedge::remediation::build_agent_payload(doc, &current_commit, auto_merge);
+                    let payload = kedge::remediation::build_agent_payload(
+                        doc,
+                        &current_commit,
+                        auto_merge,
+                        &config.remediation.agent_instructions,
+                    );
                     let payload_json = serde_json::to_string(&payload)
                         .context("failed to serialize agent payload")?;
 

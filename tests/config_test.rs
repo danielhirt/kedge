@@ -113,6 +113,46 @@ docs = []
 }
 
 #[test]
+fn parses_config_with_agent_instructions() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+agent_instructions = "Follow our internal style guide. Use JIRA ticket format."
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(
+        config.remediation.agent_instructions,
+        "Follow our internal style guide. Use JIRA ticket format."
+    );
+}
+
+#[test]
+fn agent_instructions_defaults_to_empty() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert!(config.remediation.agent_instructions.is_empty());
+}
+
+#[test]
 fn parses_config_with_triage_command_timeout_env() {
     let toml = r#"
 [detection]
