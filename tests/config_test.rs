@@ -201,6 +201,52 @@ docs = []
 }
 
 #[test]
+fn doc_repo_defaults_remote_name_to_origin() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = [
+  { url = "https://github.com/org/docs.git", path = ".", ref = "main" },
+]
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.repos.docs[0].remote_name, "origin");
+}
+
+#[test]
+fn doc_repo_accepts_custom_remote_name() {
+    let toml = r#"
+[detection]
+languages = ["java"]
+
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = [
+  { url = "https://github.com/org/docs.git", path = ".", ref = "main", remote_name = "upstream" },
+]
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.repos.docs[0].remote_name, "upstream");
+}
+
+#[test]
+fn fixture_parses_with_default_remote_name() {
+    let config = Config::from_file(Path::new("tests/fixtures/kedge.toml")).unwrap();
+    assert_eq!(config.repos.docs[0].remote_name, "origin");
+}
+
+#[test]
 fn missing_required_section_returns_error() {
     let toml = r#"
 [detection]

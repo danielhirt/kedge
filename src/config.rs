@@ -105,6 +105,12 @@ pub struct DocRepo {
     pub path: String,
     #[serde(rename = "ref")]
     pub git_ref: String,
+    #[serde(default = "default_remote_name")]
+    pub remote_name: String,
+}
+
+fn default_remote_name() -> String {
+    "origin".to_string()
 }
 
 #[derive(Debug, Deserialize)]

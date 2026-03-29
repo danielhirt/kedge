@@ -56,7 +56,12 @@ fn run_git(args: &[&str], timeout_secs: u64, context: &str) -> Result<Vec<u8>> {
     }
 }
 
-pub fn get_or_clone(repo_url: &str, git_ref: &str, timeout_secs: u64) -> Result<PathBuf> {
+pub fn get_or_clone(
+    repo_url: &str,
+    git_ref: &str,
+    timeout_secs: u64,
+    remote_name: &str,
+) -> Result<PathBuf> {
     safety::validate_repo_url(repo_url)?;
     safety::validate_git_ref(git_ref)?;
 
@@ -65,12 +70,12 @@ pub fn get_or_clone(repo_url: &str, git_ref: &str, timeout_secs: u64) -> Result<
 
     if cache_dir.exists() {
         run_git(
-            &["-C", &cache_str, "fetch", "origin", git_ref],
+            &["-C", &cache_str, "fetch", remote_name, git_ref],
             timeout_secs,
             &format!("fetch {}", git_ref),
         )?;
 
-        let checkout_ref = format!("origin/{}", git_ref);
+        let checkout_ref = format!("{}/{}", remote_name, git_ref);
         run_git(
             &["-C", &cache_str, "reset", "--hard", &checkout_ref],
             timeout_secs,
@@ -90,6 +95,14 @@ pub fn get_or_clone(repo_url: &str, git_ref: &str, timeout_secs: u64) -> Result<
             timeout_secs,
             &format!("clone {}", safety::sanitize_url(repo_url)),
         )?;
+
+        if remote_name != "origin" {
+            run_git(
+                &["-C", &cache_str, "remote", "rename", "origin", remote_name],
+                timeout_secs,
+                &format!("rename remote to {}", remote_name),
+            )?;
+        }
     }
 
     #[cfg(unix)]
@@ -101,7 +114,12 @@ pub fn get_or_clone(repo_url: &str, git_ref: &str, timeout_secs: u64) -> Result<
     Ok(cache_dir)
 }
 
-pub fn is_up_to_date(repo_url: &str, git_ref: &str, timeout_secs: u64) -> Result<bool> {
+pub fn is_up_to_date(
+    repo_url: &str,
+    git_ref: &str,
+    timeout_secs: u64,
+    _remote_name: &str,
+) -> Result<bool> {
     safety::validate_repo_url(repo_url)?;
     safety::validate_git_ref(git_ref)?;
 

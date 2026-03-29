@@ -43,6 +43,7 @@ fn resolve_docs_path(config: &kedge::config::Config) -> anyhow::Result<std::path
         &doc_repo.url,
         &doc_repo.git_ref,
         config.repos.git_timeout,
+        &doc_repo.remote_name,
     )
     .with_context(|| {
         format!(
@@ -159,6 +160,7 @@ auto_merge_severities = ["no_update"]
 docs = [
   { url = "https://github.com/your-org/docs.git", path = ".", ref = "main" },
 ]
+# remote_name = "origin"  # git remote name to fetch from (default: "origin")
 
 [[agents]]
 name = "claude"
@@ -505,6 +507,7 @@ skill_dir = ""
                         &doc_repo.url,
                         &doc_repo.git_ref,
                         config.repos.git_timeout,
+                        &doc_repo.remote_name,
                     ) {
                         Ok(true) => {
                             eprintln!(
@@ -522,6 +525,7 @@ skill_dir = ""
                     &doc_repo.url,
                     &doc_repo.git_ref,
                     config.repos.git_timeout,
+                    &doc_repo.remote_name,
                 )
                 .with_context(|| {
                     format!(
