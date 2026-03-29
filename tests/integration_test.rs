@@ -414,7 +414,11 @@ fn update_default_stamps_provenance() {
         .output()
         .unwrap();
 
-    assert!(output.status.success(), "kedge update failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "kedge update failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Provenance should have been stamped with a sig: value
     let doc_after = std::fs::read_to_string(docs_dir.path().join("auth.md")).unwrap();
@@ -454,7 +458,11 @@ fn update_no_stamp_skips_provenance_write() {
         .output()
         .unwrap();
 
-    assert!(output.status.success(), "kedge update --no-stamp failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "kedge update --no-stamp failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Provenance should NOT have been updated — still the original SHA
     let doc_after = std::fs::read_to_string(docs_dir.path().join("auth.md")).unwrap();
@@ -541,7 +549,11 @@ fn update_no_stamp_does_not_affect_agent_invocation() {
         .output()
         .unwrap();
 
-    assert!(output.status.success(), "kedge update --no-stamp failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "kedge update --no-stamp failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 

@@ -487,8 +487,9 @@ skill_dir = ""
                         return kedge::models::ProvenanceSynced {
                             doc: doc.doc.clone(),
                             anchors_synced: 0,
-                            reason: "no_update — provenance not stamped (use kedge sync to advance)"
-                                .to_string(),
+                            reason:
+                                "no_update — provenance not stamped (use kedge sync to advance)"
+                                    .to_string(),
                         };
                     }
                     let doc_file = std::path::PathBuf::from(&doc.doc);
