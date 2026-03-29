@@ -75,11 +75,10 @@ pub fn get_or_clone(
             &format!("fetch {}", git_ref),
         )?;
 
-        let checkout_ref = format!("{}/{}", remote_name, git_ref);
         run_git(
-            &["-C", &cache_str, "reset", "--hard", &checkout_ref],
+            &["-C", &cache_str, "reset", "--hard", "FETCH_HEAD"],
             timeout_secs,
-            &format!("reset to {}", checkout_ref),
+            &format!("reset to FETCH_HEAD ({})", git_ref),
         )?;
     } else {
         if let Some(parent) = cache_dir.parent() {
