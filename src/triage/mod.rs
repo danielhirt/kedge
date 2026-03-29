@@ -92,6 +92,8 @@ pub fn apply_classifications(
         .map(|c| ((c.path.as_str(), c.symbol.as_deref()), c.severity))
         .collect();
 
+    let mut unclassified_count = 0usize;
+
     let drifted: Vec<TriagedDoc> = drift_report
         .drifted
         .iter()
@@ -101,7 +103,13 @@ pub fn apply_classifications(
                 .iter()
                 .map(|anchor| {
                     let key = (anchor.path.as_str(), anchor.symbol.as_deref());
-                    let severity = class_map.get(&key).copied().unwrap_or(Severity::NoUpdate);
+                    let severity = match class_map.get(&key) {
+                        Some(&s) => s,
+                        None => {
+                            unclassified_count += 1;
+                            Severity::Minor
+                        }
+                    };
 
                     TriagedAnchor {
                         path: anchor.path.clone(),
@@ -129,6 +137,13 @@ pub fn apply_classifications(
             }
         })
         .collect();
+
+    if unclassified_count > 0 {
+        eprintln!(
+            "Warning: {} anchor(s) not classified by triage — defaulting to minor",
+            unclassified_count
+        );
+    }
 
     TriagedReport {
         repo: drift_report.repo.clone(),

@@ -122,7 +122,7 @@ fn parse_triage_response_empty_json_array_returns_empty_vec() {
 }
 
 #[test]
-fn apply_classifications_unmatched_anchor_defaults_to_no_update() {
+fn apply_classifications_unmatched_anchor_defaults_to_minor() {
     let drift_report = DriftReport {
         repo: "test".to_string(),
         git_ref: "main".to_string(),
@@ -151,11 +151,11 @@ fn apply_classifications_unmatched_anchor_defaults_to_no_update() {
     }];
 
     let triaged = triage::apply_classifications(&drift_report, &classifications, "test");
-    assert_eq!(triaged.drifted[0].anchors[0].severity, Severity::NoUpdate);
+    assert_eq!(triaged.drifted[0].anchors[0].severity, Severity::Minor);
 }
 
 #[test]
-fn apply_classifications_empty_classifications_all_default_to_no_update() {
+fn apply_classifications_empty_classifications_all_default_to_minor() {
     let drift_report = DriftReport {
         repo: "test".to_string(),
         git_ref: "main".to_string(),
@@ -188,9 +188,9 @@ fn apply_classifications_empty_classifications_all_default_to_no_update() {
     };
 
     let triaged = triage::apply_classifications(&drift_report, &[], "test");
-    assert_eq!(triaged.drifted[0].anchors[0].severity, Severity::NoUpdate);
-    assert_eq!(triaged.drifted[0].anchors[1].severity, Severity::NoUpdate);
-    assert_eq!(triaged.drifted[0].severity, Severity::NoUpdate);
+    assert_eq!(triaged.drifted[0].anchors[0].severity, Severity::Minor);
+    assert_eq!(triaged.drifted[0].anchors[1].severity, Severity::Minor);
+    assert_eq!(triaged.drifted[0].severity, Severity::Minor);
 }
 
 // --- parse_triage_response edge cases ---
