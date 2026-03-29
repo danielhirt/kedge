@@ -237,6 +237,45 @@ fn batch_auto_merge_is_all_or_nothing() {
     // while the batch was sent with auto_merge=false. The batch flag is authoritative.
 }
 
+// --- should_auto_merge edge cases ---
+
+#[test]
+fn should_auto_merge_is_case_insensitive() {
+    let severities = vec!["MINOR".to_string(), "Major".to_string()];
+    assert!(remediation::should_auto_merge(Severity::Minor, &severities));
+    assert!(remediation::should_auto_merge(Severity::Major, &severities));
+    assert!(!remediation::should_auto_merge(
+        Severity::NoUpdate,
+        &severities
+    ));
+}
+
+#[test]
+fn should_auto_merge_empty_list_matches_nothing() {
+    let empty: Vec<String> = vec![];
+    assert!(!remediation::should_auto_merge(Severity::Minor, &empty));
+    assert!(!remediation::should_auto_merge(Severity::Major, &empty));
+    assert!(!remediation::should_auto_merge(Severity::NoUpdate, &empty));
+}
+
+// --- build_agent_payload edge cases ---
+
+#[test]
+fn drifted_agent_anchors_filters_all_no_update() {
+    // Doc has Major severity but all anchors are NoUpdate
+    let doc = make_doc(
+        "edge.md",
+        Severity::Major,
+        vec![
+            make_anchor("src/A.java", None, Severity::NoUpdate),
+            make_anchor("src/B.java", None, Severity::NoUpdate),
+        ],
+    );
+
+    let payload = remediation::build_agent_payload(&doc, "abc", false, "");
+    assert!(payload.drifted_anchors.is_empty());
+}
+
 // --- partition_by_action (additional cases) ---
 
 #[test]
@@ -266,6 +305,32 @@ fn partition_all_docs_need_remediation() {
     let (to_remediate, to_sync) = remediation::partition_by_action(&report);
     assert_eq!(to_remediate.len(), 2);
     assert!(to_sync.is_empty());
+}
+
+#[test]
+fn partition_mixed_severities() {
+    let report = make_report(vec![
+        make_doc(
+            "clean.md",
+            Severity::NoUpdate,
+            vec![make_anchor("src/A.java", None, Severity::NoUpdate)],
+        ),
+        make_doc(
+            "dirty.md",
+            Severity::Minor,
+            vec![make_anchor("src/B.java", None, Severity::Minor)],
+        ),
+        make_doc(
+            "critical.md",
+            Severity::Major,
+            vec![make_anchor("src/C.java", None, Severity::Major)],
+        ),
+    ]);
+
+    let (to_remediate, to_sync) = remediation::partition_by_action(&report);
+    assert_eq!(to_remediate.len(), 2);
+    assert_eq!(to_sync.len(), 1);
+    assert_eq!(to_sync[0].doc, "clean.md");
 }
 
 // --- custom agent_instructions ---

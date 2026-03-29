@@ -19,6 +19,7 @@ pub fn parse_agent_output(output: &str) -> (Option<String>, Vec<String>) {
 pub fn scrape_urls(output: &str) -> Vec<String> {
     output
         .split_whitespace()
+        .map(|w| w.trim_start_matches(['\'', '"', '(', '[']))
         .filter(|w| w.starts_with("https://") || w.starts_with("http://"))
         .map(|w| {
             w.trim_end_matches([',', '.', ';', ')', ']', '"', '\''])
