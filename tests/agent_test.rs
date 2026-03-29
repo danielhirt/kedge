@@ -82,3 +82,49 @@ fn stderr_does_not_appear_in_stdout() {
     let output = result.unwrap();
     assert_eq!(output.trim(), "out");
 }
+
+#[test]
+fn env_var_expansion_replaces_dollar_brace_patterns() {
+    use kedge::remediation::agent::expand_env_vars;
+    std::env::set_var("KEDGE_TEST_TOKEN", "secret123");
+
+    let mut env = HashMap::new();
+    env.insert("MY_TOKEN".to_string(), "${KEDGE_TEST_TOKEN}".to_string());
+    env.insert(
+        "MIXED".to_string(),
+        "prefix-${KEDGE_TEST_TOKEN}-suffix".to_string(),
+    );
+    env.insert("PLAIN".to_string(), "no-expansion".to_string());
+
+    let expanded = expand_env_vars(&env);
+    assert_eq!(expanded["MY_TOKEN"], "secret123");
+    assert_eq!(expanded["MIXED"], "prefix-secret123-suffix");
+    assert_eq!(expanded["PLAIN"], "no-expansion");
+
+    std::env::remove_var("KEDGE_TEST_TOKEN");
+}
+
+#[test]
+fn env_var_expansion_missing_var_becomes_empty() {
+    use kedge::remediation::agent::expand_env_vars;
+    std::env::remove_var("KEDGE_NONEXISTENT_VAR");
+
+    let mut env = HashMap::new();
+    env.insert("KEY".to_string(), "${KEDGE_NONEXISTENT_VAR}".to_string());
+
+    let expanded = expand_env_vars(&env);
+    assert_eq!(expanded["KEY"], "");
+}
+
+#[test]
+fn env_var_expansion_passed_to_child_process() {
+    std::env::set_var("KEDGE_TEST_EXPAND", "expanded_value");
+
+    let mut env = HashMap::new();
+    env.insert("CHECK_VAR".to_string(), "${KEDGE_TEST_EXPAND}".to_string());
+
+    let result = invoke_agent("sh -c 'echo $CHECK_VAR'", "", 5, &env);
+    assert_eq!(result.unwrap().trim(), "expanded_value");
+
+    std::env::remove_var("KEDGE_TEST_EXPAND");
+}

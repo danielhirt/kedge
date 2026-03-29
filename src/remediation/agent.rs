@@ -4,6 +4,29 @@ use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+/// Expand `${VAR}` patterns in env map values from the current environment.
+/// Unknown variables are replaced with empty strings.
+pub fn expand_env_vars(env: &HashMap<String, String>) -> HashMap<String, String> {
+    env.iter()
+        .map(|(k, v)| (k.clone(), expand_value(v)))
+        .collect()
+}
+
+fn expand_value(value: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '$' && chars.peek() == Some(&'{') {
+            chars.next(); // consume '{'
+            let var_name: String = chars.by_ref().take_while(|&ch| ch != '}').collect();
+            result.push_str(&std::env::var(&var_name).unwrap_or_default());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
 pub fn invoke_agent(
     command: &str,
     payload_json: &str,
@@ -15,9 +38,10 @@ pub fn invoke_agent(
     let program = parts.first().context("agent_command must not be empty")?;
     let args = &parts[1..];
 
+    let expanded_env = expand_env_vars(env);
     let mut child = Command::new(program)
         .args(args)
-        .envs(env)
+        .envs(&expanded_env)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
