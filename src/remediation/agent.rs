@@ -25,9 +25,13 @@ pub fn invoke_agent(
         .with_context(|| format!("failed to spawn agent process: {}", command))?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(payload_json.as_bytes())
-            .context("failed to write payload to agent stdin")?;
+        match stdin.write_all(payload_json.as_bytes()) {
+            Ok(()) => {}
+            // BrokenPipe means the child exited without reading stdin.
+            // Not fatal here — the exit code check below will catch real failures.
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => {}
+            Err(e) => return Err(e).context("failed to write payload to agent stdin"),
+        }
     }
 
     // Read stdout on a background thread to avoid pipe deadlock.
