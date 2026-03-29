@@ -102,6 +102,7 @@ model = "claude-haiku-4-5-20251001"   # required for anthropic/openai providers
 # api_key_env = ""                    # env var name for API key (default: ANTHROPIC_API_KEY or OPENAI_API_KEY)
 # triage_timeout = 120                # seconds per doc (default: 120)
 # triage_env = { }                    # extra env vars for command provider
+# severity_levels = ["no_update", "minor", "major"]
 
 [remediation]
 agent_command = "your-agent-command"  # receives JSON on stdin, prints result to stdout
@@ -109,7 +110,7 @@ auto_merge_severities = ["no_update"]
 # batch = true                        # single agent invocation for all drifted docs
 # agent_timeout = 300                 # seconds, kills agent process if exceeded (default: 300)
 # agent_env = { }                     # extra env vars passed to agent process
-# agent_instructions = ""             # custom text appended to agent instructions
+# agent_instructions = ""             # replaces default agent instructions when set
 
 [repos]
 # git_timeout = 300                   # seconds for clone/fetch operations (default: 300)
@@ -149,6 +150,7 @@ skill_dir = ""
 | | `triage_command` | | Shell command for `command` provider |
 | | `triage_timeout` | `120` | Seconds per triage call |
 | | `triage_env` | `{}` | Extra env vars for `command` provider |
+| | `severity_levels` | `["no_update", "minor", "major"]` | Severity levels used for classification |
 | `[remediation]` | `agent_command` | | Shell command to invoke the agent |
 | | `auto_merge_severities` | `[]` | Severities where auto-merge flag is set |
 | | `batch` | `false` | Bundle all drifted docs into one agent call |

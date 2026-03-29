@@ -193,7 +193,7 @@ auto_merge_severities = ["no_update"]
 # batch = true        # single agent invocation for all drifted docs
 # agent_timeout = 300  # seconds, kills agent process if exceeded
 # agent_env = { }      # extra env vars passed to agent process
-# agent_instructions = ""  # extra instructions appended to agent payload
+# agent_instructions = ""  # replaces default agent instructions when set
 
 [repos]
 # git_timeout = 300  # seconds for clone/fetch operations (default: 300)
