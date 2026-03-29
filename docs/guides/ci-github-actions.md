@@ -2,7 +2,7 @@
 
 kedge integrates with GitHub Actions as a **push-triggered check** for drift detection and a **scheduled workflow** for full remediation.
 
-kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so workflows only need the code repo checked out. No separate checkout step for docs.
+All kedge commands run from the code repo root, where `kedge.toml` lives. GitHub Actions checks out the repo by default with `actions/checkout`. kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so no separate checkout step is needed for docs.
 
 ## Drift detection on push
 

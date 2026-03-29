@@ -2,7 +2,7 @@
 
 kedge fits into GitLab CI in two ways: as an **MR gate** that blocks merges when docs drift, and as a **scheduled pipeline** that remediates drift.
 
-kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so CI pipelines only need the code repo checked out. No separate `git clone` step for docs.
+All kedge commands run from the code repo root, where `kedge.toml` lives. GitLab CI does this by default. kedge auto-clones the docs repo from `[[repos.docs]]` in `kedge.toml`, so no separate `git clone` step is needed for docs.
 
 ## MR gate: block merges on drift
 
