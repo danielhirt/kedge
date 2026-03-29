@@ -17,7 +17,21 @@ fn repo_path_from_url(url: &str) -> &str {
 }
 
 fn anchor_matches_repo(anchor_repo: &str, code_repo_url: &str) -> bool {
-    repo_path_from_url(anchor_repo) == repo_path_from_url(code_repo_url)
+    let a = repo_path_from_url(anchor_repo);
+    let b = repo_path_from_url(code_repo_url);
+    if a == b {
+        return true;
+    }
+    // On macOS, /var is a symlink to /private/var. Canonicalize file:// paths
+    // so anchors written with TempDir paths match current_dir() paths.
+    if anchor_repo.starts_with("file://") && code_repo_url.starts_with("file://") {
+        let canon_a = Path::new(a).canonicalize();
+        let canon_b = Path::new(b).canonicalize();
+        if let (Ok(ca), Ok(cb)) = (canon_a, canon_b) {
+            return ca == cb;
+        }
+    }
+    false
 }
 
 pub fn detect_drift(

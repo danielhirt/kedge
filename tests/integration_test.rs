@@ -308,7 +308,7 @@ fn sync_advances_provenance() {
     git_commit(code_path, "init");
 
     let doc_content = format!(
-        "---\nkedge:\n  anchors:\n    - repo: \"file://{code}\"\n      path: src/Svc.java\n      provenance: old\n---\n\n# Svc\n",
+        "---\nkedge:\n  anchors:\n    - repo: \"file://{code}\"\n      path: src/Svc.java\n      provenance: stale0placeholder\n---\n\n# Svc\n",
         code = code_path.display(),
     );
     let doc_path = code_path.join("svc.md");
@@ -325,7 +325,7 @@ fn sync_advances_provenance() {
 
     let updated = std::fs::read_to_string(&doc_path).unwrap();
     assert!(updated.contains("sig:"));
-    assert!(!updated.contains("old"));
+    assert!(!updated.contains("stale0placeholder"));
 }
 
 // ---------------------------------------------------------------------------
