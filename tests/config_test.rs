@@ -4,11 +4,6 @@ use std::path::Path;
 #[test]
 fn parses_full_config() {
     let config = Config::from_file(Path::new("tests/fixtures/kedge.toml")).unwrap();
-    assert_eq!(
-        config.detection.languages,
-        vec!["java", "go", "typescript", "xml"]
-    );
-    assert_eq!(config.detection.fallback, "content-hash");
     assert_eq!(config.triage.provider, "anthropic");
     assert_eq!(config.triage.model, "claude-haiku-4-5-20251001");
     assert_eq!(
@@ -73,7 +68,6 @@ fn triage_config_default_values() {
 fn parses_config_with_batch() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -92,7 +86,6 @@ docs = []
 fn parses_config_with_agent_timeout_and_env() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -116,7 +109,6 @@ docs = []
 fn parses_config_with_agent_instructions() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -138,7 +130,6 @@ docs = []
 fn agent_instructions_defaults_to_empty() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -156,7 +147,6 @@ docs = []
 fn parses_config_with_triage_command_timeout_env() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 triage_command = "my-triage-cmd"
@@ -179,7 +169,6 @@ docs = []
 fn defaults_when_optional_fields_omitted() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -200,7 +189,6 @@ docs = []
 fn parses_config_with_git_timeout() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -219,7 +207,6 @@ docs = []
 fn parses_config_with_api_url_and_key_env() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 provider = "openai"
@@ -244,7 +231,6 @@ docs = []
 fn doc_repo_defaults_remote_name_to_origin() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -264,7 +250,6 @@ docs = [
 fn doc_repo_accepts_custom_remote_name() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -290,7 +275,6 @@ fn fixture_parses_with_default_remote_name() {
 fn parses_multiple_doc_repos() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -322,7 +306,6 @@ ref = "develop"
 fn missing_required_section_returns_error() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 "#;
@@ -334,7 +317,6 @@ languages = ["java"]
 fn detection_config_has_default_exclude_dirs() {
     let toml = r#"
 [detection]
-languages = ["java"]
 
 [triage]
 
@@ -360,7 +342,6 @@ docs = []
 fn detection_config_accepts_custom_exclude_dirs() {
     let toml = r#"
 [detection]
-languages = ["java"]
 exclude_dirs = ["custom_dir", "another"]
 
 [triage]
@@ -373,4 +354,39 @@ docs = []
 "#;
     let config: Config = toml::from_str(toml).unwrap();
     assert_eq!(config.detection.exclude_dirs, vec!["custom_dir", "another"]);
+}
+
+#[test]
+fn old_config_with_removed_fields_still_parses() {
+    let toml = r#"
+[detection]
+languages = ["java", "go"]
+fallback = "content-hash"
+
+[triage]
+severity_levels = ["no_update", "minor", "major"]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert_eq!(config.triage.provider, "command");
+}
+
+#[test]
+fn config_without_detection_section_uses_defaults() {
+    let toml = r#"
+[triage]
+
+[remediation]
+agent_command = "agent"
+
+[repos]
+docs = []
+"#;
+    let config: Config = toml::from_str(toml).unwrap();
+    assert!(config.detection.exclude_dirs.contains(&".git".to_string()));
 }

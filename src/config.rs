@@ -5,6 +5,7 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub detection: DetectionConfig,
     pub triage: TriageConfig,
     pub remediation: RemediationConfig,
@@ -15,9 +16,6 @@ pub struct Config {
 
 #[derive(Debug, Deserialize)]
 pub struct DetectionConfig {
-    pub languages: Vec<String>,
-    #[serde(default = "default_fallback")]
-    pub fallback: String,
     #[serde(default = "default_exclude_dirs")]
     pub exclude_dirs: Vec<String>,
 }
@@ -25,15 +23,9 @@ pub struct DetectionConfig {
 impl Default for DetectionConfig {
     fn default() -> Self {
         Self {
-            languages: vec![],
-            fallback: default_fallback(),
             exclude_dirs: default_exclude_dirs(),
         }
     }
-}
-
-fn default_fallback() -> String {
-    "content-hash".to_string()
 }
 
 fn default_exclude_dirs() -> Vec<String> {
@@ -64,8 +56,6 @@ pub struct TriageConfig {
     pub triage_timeout: u64,
     #[serde(default)]
     pub triage_env: HashMap<String, String>,
-    #[serde(default = "default_severity_levels")]
-    pub severity_levels: Vec<String>,
 }
 
 fn default_provider() -> String {
@@ -82,17 +72,12 @@ impl Default for TriageConfig {
             triage_command: String::new(),
             triage_timeout: default_triage_timeout(),
             triage_env: HashMap::new(),
-            severity_levels: default_severity_levels(),
         }
     }
 }
 
 fn default_triage_timeout() -> u64 {
     120
-}
-
-fn default_severity_levels() -> Vec<String> {
-    vec!["no_update".into(), "minor".into(), "major".into()]
 }
 
 #[derive(Debug, Deserialize)]

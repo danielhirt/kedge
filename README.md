@@ -91,8 +91,6 @@ kedge update                # Full pipeline: detect -> triage -> agent -> MR
 
 ```toml
 [detection]
-languages = ["java", "go", "typescript", "python", "rust", "xml"]
-fallback = "content-hash"
 # exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
@@ -140,22 +138,19 @@ skill_dir = ""
 
 | Section | Field | Default | Description |
 |---------|-------|---------|-------------|
-| `[detection]` | `languages` | | Languages to fingerprint via AST |
-| | `fallback` | `"content-hash"` | Fallback for unsupported file types |
-| | `exclude_dirs` | `.git`, `node_modules`, ... | Directories to skip when scanning for docs |
+| `[detection]` | `exclude_dirs` | `.git`, `node_modules`, ... | Directories to skip when scanning for docs |
 | `[triage]` | `provider` | `"command"` | AI provider: `anthropic`, `openai`, or `command` |
 | | `model` | | Model ID (required for `anthropic`/`openai`) |
 | | `api_url` | provider default | Custom API endpoint for enterprise proxies |
 | | `api_key_env` | `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` | Env var name holding the API key |
 | | `triage_command` | | Shell command for `command` provider |
 | | `triage_timeout` | `120` | Seconds per triage call |
-| | `triage_env` | `{}` | Extra env vars for `command` provider |
-| | `severity_levels` | `["no_update", "minor", "major"]` | Severity levels used for classification |
+| | `triage_env` | `{}` | Extra env vars for `command` provider. Values support `${VAR}` expansion. |
 | `[remediation]` | `agent_command` | | Shell command to invoke the agent |
 | | `auto_merge_severities` | `[]` | Severities where auto-merge flag is set |
 | | `batch` | `false` | Bundle all drifted docs into one agent call |
 | | `agent_timeout` | `300` | Seconds before agent process is killed |
-| | `agent_env` | `{}` | Extra env vars passed to agent |
+| | `agent_env` | `{}` | Extra env vars passed to agent. Values support `${VAR}` expansion. |
 | | `agent_instructions` | `""` | Replaces the default `instructions` in the agent payload |
 | `[repos]` | `git_timeout` | `300` | Seconds for clone/fetch/ls-remote operations |
 | `[[repos.docs]]` | `url` | | Git URL of the documentation repository |

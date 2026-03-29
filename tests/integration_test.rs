@@ -69,7 +69,7 @@ fn setup_code_and_docs() -> (TempDir, TempDir) {
 
 fn write_config(code_path: &Path) {
     let config = format!(
-        "[detection]\nlanguages = [\"java\"]\n\n[triage]\nprovider = \"command\"\ntriage_command = \"echo '[]'\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        "[detection]\n\n[triage]\nprovider = \"command\"\ntriage_command = \"echo '[{{\\\"path\\\": \\\"src/auth/Auth.java\\\", \\\"severity\\\": \\\"no_update\\\"}}]'\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
         code = code_path.display(),
     );
     std::fs::write(code_path.join("kedge.toml"), &config).unwrap();
@@ -536,7 +536,7 @@ fn update_no_stamp_does_not_affect_agent_invocation() {
 
     // Triage returns minor severity so the doc goes to the agent path
     let config = format!(
-        "[detection]\nlanguages = [\"java\"]\n\n[triage]\nprovider = \"command\"\ntriage_command = \"echo '[{{\\\"path\\\": \\\"src/auth/Auth.java\\\", \\\"severity\\\": \\\"minor\\\"}}]'\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
+        "[detection]\n\n[triage]\nprovider = \"command\"\ntriage_command = \"echo '[{{\\\"path\\\": \\\"src/auth/Auth.java\\\", \\\"severity\\\": \\\"minor\\\"}}]'\"\n\n[remediation]\nagent_command = \"echo done\"\nauto_merge_severities = []\n\n[[repos.docs]]\nurl = \"file://{code}\"\npath = \"\"\nref = \"main\"\n",
         code = code_path.display(),
     );
     std::fs::write(code_path.join("kedge.toml"), &config).unwrap();

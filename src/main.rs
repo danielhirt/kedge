@@ -175,8 +175,7 @@ fn main() -> anyhow::Result<()> {
                 eprintln!("{} already exists — skipping.", cli.config.display());
             } else {
                 let template = r#"[detection]
-languages = ["rust", "python", "typescript"]
-fallback = "content-hash"
+# exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
 provider = "command"                   # "anthropic", "openai", or "command"

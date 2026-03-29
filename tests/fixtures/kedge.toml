@@ -1,11 +1,8 @@
 [detection]
-languages = ["java", "go", "typescript", "xml"]
-fallback = "content-hash"
 
 [triage]
 provider = "anthropic"
 model = "claude-haiku-4-5-20251001"
-severity_levels = ["no_update", "minor", "major"]
 
 [remediation]
 agent_command = "kiro --agent drift-updater"

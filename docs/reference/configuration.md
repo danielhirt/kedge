@@ -6,8 +6,7 @@
 
 ```toml
 [detection]
-languages = ["java", "go", "typescript", "python", "rust", "xml"]
-fallback = "content-hash"
+# exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
 provider = "anthropic"
@@ -48,15 +47,11 @@ skill_dir = ""
 
 ## `[detection]`
 
-Controls how kedge fingerprints code.
+Controls how kedge scans for steering files. Language detection is automatic based on file extensions.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `languages` | string array | (required) | Languages to fingerprint via AST. Supported: `java`, `go`, `typescript`, `python`, `rust`, `xml`. |
-| `fallback` | string | `"content-hash"` | Fallback strategy for unsupported file types. Currently only `"content-hash"` (SHA-256 of raw content). |
 | `exclude_dirs` | string array | see below | Directory names to skip when scanning for steering files. |
-
-Languages listed here determine which tree-sitter grammars are used for AST-based fingerprinting. Files with extensions not matching any listed language fall back to content hashing.
 
 ### `exclude_dirs`
 
@@ -70,7 +65,6 @@ Override to match your project layout:
 
 ```toml
 [detection]
-languages = ["java"]
 exclude_dirs = [".git", "node_modules", "build", ".next"]
 ```
 
@@ -88,8 +82,7 @@ Controls AI-based severity classification.
 | `api_key_env` | string | `"ANTHROPIC_API_KEY"` or `"OPENAI_API_KEY"` | Name of the environment variable holding the API key. |
 | `triage_command` | string | `""` | Shell command for the `command` provider. Receives prompt on stdin. |
 | `triage_timeout` | integer | `120` | Seconds to wait per triage call before timing out. |
-| `triage_env` | table | `{}` | Extra environment variables passed to the `command` provider process. |
-| `severity_levels` | string array | `["no_update", "minor", "major"]` | The severity levels used for classification. |
+| `triage_env` | table | `{}` | Extra environment variables passed to the `command` provider process. Values support `${VAR}` expansion. |
 
 ### Provider details
 
