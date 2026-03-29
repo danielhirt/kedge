@@ -223,6 +223,7 @@ kedge install --workspace --check             # skip if already up to date
 | `--link` | Symlink to the global steering directory. For dev machines. |
 | `--workspace` | Copy to the workspace steering directory. For CI. |
 | `--check` | Compare local cache against remote HEAD; skip if already up to date. |
+| `--recursive` | Include files from subdirectories within group and shared folders. |
 
 `--link` and `--workspace` are mutually exclusive. In CI environments (`CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` env vars set), `--workspace` is the default unless `--link` is explicitly passed.
 
@@ -235,6 +236,14 @@ From the docs repo source directory:
 - `_kedge/AGENTS.md`: installed as the platform's `agents_file` (e.g., renamed to `CLAUDE.md` for the claude platform)
 - `_kedge/skill.md`: installed into the platform's `skill_dir`
 
-Symlinks in the source directory are skipped for security.
+Without `--recursive`, kedge installs only top-level `.md` files from each directory. With it, kedge walks subdirectories and preserves the directory structure in the target:
+
+```bash
+# Source: payments/services/auth/auth.md
+# Target: .kiro/steering/services/auth/auth.md
+kedge install --workspace --group payments --recursive
+```
+
+kedge skips symlinks in the source directory for security, including within subdirectories during `--recursive` walks.
 
 In `--workspace` mode, kedge also adds the workspace steering directory to `.git/info/exclude` to avoid accidentally committing copied files.

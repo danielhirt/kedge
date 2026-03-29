@@ -118,9 +118,9 @@ When `kedge link` or `kedge sync` updates provenance, it modifies only the `prov
 
 kedge discovers steering files by:
 
-1. Reading the docs directory (from `KEDGE_DOCS_PATH` env var, or cloned from `[[repos.docs]]` config)
-2. Scanning recursively for `*.md` files
+1. Reading docs directories (from `KEDGE_DOCS_PATH` env var, or cloned from all `[[repos.docs]]` entries)
+2. Scanning recursively for `*.md` files, skipping directories listed in `exclude_dirs` (defaults: `.git`, `node_modules`, `target`, `.venv`, `__pycache__`, `.tox`, `vendor`)
 3. Parsing each file for `kedge:` frontmatter with non-empty `anchors`
 4. Filtering by repo URL (only anchors matching the current code repo are processed)
 
-Files without `kedge:` frontmatter or with empty anchors are skipped.
+kedge skips files without `kedge:` frontmatter or with empty anchors. See [Configuration](configuration.md#exclude_dirs) to customize the exclusion list.

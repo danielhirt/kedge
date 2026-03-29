@@ -93,6 +93,7 @@ kedge update                # Full pipeline: detect -> triage -> agent -> MR
 [detection]
 languages = ["java", "go", "typescript", "python", "rust", "xml"]
 fallback = "content-hash"
+# exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
 
 [triage]
 provider = "anthropic"                # "anthropic", "openai", or "command"
@@ -116,6 +117,7 @@ auto_merge_severities = ["no_update"]
 url = "git@gitlab.example.com:platform/docs.git"
 path = "steering/"
 ref = "main"
+# remote_name = "origin"              # git remote name for fetch (default: "origin")
 
 [[agents]]
 name = "kiro"
@@ -138,6 +140,7 @@ skill_dir = ""
 |---------|-------|---------|-------------|
 | `[detection]` | `languages` | | Languages to fingerprint via AST |
 | | `fallback` | `"content-hash"` | Fallback for unsupported file types |
+| | `exclude_dirs` | `.git`, `node_modules`, ... | Directories to skip when scanning for docs |
 | `[triage]` | `provider` | `"command"` | AI provider: `anthropic`, `openai`, or `command` |
 | | `model` | | Model ID (required for `anthropic`/`openai`) |
 | | `api_url` | provider default | Custom API endpoint for enterprise proxies |
@@ -154,6 +157,7 @@ skill_dir = ""
 | `[[repos.docs]]` | `url` | | Git URL of the documentation repository |
 | | `path` | | Subdirectory within docs repo for steering files |
 | | `ref` | | Git branch or tag to track |
+| | `remote_name` | `"origin"` | Git remote name for fetch operations |
 | `[[agents]]` | `name` | | Platform identifier (used with `--agent` flag) |
 | | `global_steering` | | Path for symlinked steering files (dev machines) |
 | | `workspace_steering` | | Path for copied steering files (CI) |
@@ -339,6 +343,7 @@ kedge scans stdout for URLs starting with `https://` or `http://` and uses the f
 | `--link` | Symlink to global steering directory (dev machines) |
 | `--workspace` | Copy to workspace steering directory (CI) |
 | `--check` | Skip if already up to date (compare local vs remote HEAD) |
+| `--recursive` | Include files from subdirectories within group/shared folders |
 
 CI environments (`CI`, `GITHUB_ACTIONS`, or `GITLAB_CI` set) default to `--workspace` mode unless you pass `--link`.
 

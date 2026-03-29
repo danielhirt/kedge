@@ -54,8 +54,27 @@ Controls how kedge fingerprints code.
 |-------|------|---------|-------------|
 | `languages` | string array | (required) | Languages to fingerprint via AST. Supported: `java`, `go`, `typescript`, `python`, `rust`, `xml`. |
 | `fallback` | string | `"content-hash"` | Fallback strategy for unsupported file types. Currently only `"content-hash"` (SHA-256 of raw content). |
+| `exclude_dirs` | string array | see below | Directory names to skip when scanning for steering files. |
 
 Languages listed here determine which tree-sitter grammars are used for AST-based fingerprinting. Files with extensions not matching any listed language fall back to content hashing.
+
+### `exclude_dirs`
+
+When scanning a docs directory for `.md` files, kedge skips any path containing a directory segment matching one of these names. The default list:
+
+```toml
+exclude_dirs = [".git", "node_modules", "target", ".venv", "__pycache__", ".tox", "vendor"]
+```
+
+Override to match your project layout:
+
+```toml
+[detection]
+languages = ["java"]
+exclude_dirs = [".git", "node_modules", "build", ".next"]
+```
+
+Setting `exclude_dirs = []` disables all exclusions.
 
 ## `[triage]`
 
@@ -108,17 +127,34 @@ Controls git operations for doc repositories.
 
 ### `[[repos.docs]]`
 
-One or more documentation repositories. Each entry:
+One or more documentation repositories. kedge clones each repo and scans all of them during `check` and `update`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `url` | string | Git URL of the docs repository (SSH or HTTPS). |
-| `path` | string | Subdirectory within the repo where steering files live. Use `"."` for the repo root. |
-| `ref` | string | Git branch or tag to track. |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | string | (required) | Git URL of the docs repository (SSH or HTTPS). |
+| `path` | string | (required) | Subdirectory within the repo where steering files live. Use `"."` for the repo root. |
+| `ref` | string | (required) | Git branch or tag to track. |
+| `remote_name` | string | `"origin"` | Git remote name used for fetch operations. |
 
 Docs repos are cloned to `~/.cache/kedge/repos/` and fetched on each run. The cache directory uses `0o700` permissions.
 
-Example with multiple repos:
+#### `remote_name`
+
+kedge fetches from the `origin` remote by default. Set `remote_name` to pull from a different remote, useful for fork-based workflows:
+
+```toml
+[[repos.docs]]
+url = "git@github.com:your-org/docs.git"
+path = "steering/"
+ref = "main"
+remote_name = "upstream"
+```
+
+After the initial clone, kedge renames the remote from `origin` to the specified name. Subsequent fetches use that remote.
+
+#### Multiple repos
+
+Both `kedge check` and `kedge update` scan steering files from all configured repos and merge the results into a single drift report.
 
 ```toml
 [[repos.docs]]

@@ -67,9 +67,9 @@ When kedge runs in the code repo, it resolves the current repo URL (from `KEDGE_
 kedge needs access to both repos during detection. It gets the docs repo by:
 
 1. Checking `KEDGE_DOCS_PATH` env var (if set, uses that local path)
-2. Otherwise, cloning the first `[[repos.docs]]` entry from `kedge.toml`
+2. Otherwise, cloning all `[[repos.docs]]` entries from `kedge.toml`
 
-Cloned repos are cached in `~/.cache/kedge/repos/` and fetched on subsequent runs. The cache uses `0o700` permissions.
+When multiple doc repos are configured, `kedge check` and `kedge update` scan all of them and merge the results into a single drift report. Cloned repos are cached in `~/.cache/kedge/repos/` and fetched on subsequent runs. The cache uses `0o700` permissions.
 
 ### `kedge install`
 
