@@ -479,6 +479,7 @@ skill_dir = ""
             link,
             workspace,
             check,
+            recursive,
         } => {
             let config = kedge::config::Config::from_file(&cli.config)
                 .context("failed to load kedge.toml — run `kedge init` first")?;
@@ -561,6 +562,7 @@ skill_dir = ""
                             group.as_deref(),
                             agents_file,
                             skill_dir.as_deref(),
+                            recursive,
                         )
                         .with_context(|| {
                             format!("install_to_workspace failed for {}", platform.name)
@@ -579,6 +581,7 @@ skill_dir = ""
                             group.as_deref(),
                             agents_file,
                             skill_dir.as_deref(),
+                            recursive,
                         )
                         .with_context(|| {
                             format!("install_as_links failed for {}", platform.name)

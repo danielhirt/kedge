@@ -33,6 +33,7 @@ fn copies_steering_files_in_workspace_mode() {
         Some("payments-platform"),
         Some("AGENTS.md"),
         None,
+        false,
     )
     .unwrap();
 
@@ -56,7 +57,15 @@ fn filters_by_group() {
 
     let target = workspace_dir.path().join(".kiro/steering");
 
-    install::install_to_workspace(source_dir.path(), &target, Some("team-a"), None, None).unwrap();
+    install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        Some("team-a"),
+        None,
+        None,
+        false,
+    )
+    .unwrap();
 
     assert!(target.join("a.md").exists());
     assert!(!target.join("b.md").exists());
@@ -73,7 +82,15 @@ fn creates_symlinks_in_link_mode() {
 
     let target = link_dir.path().join("steering");
 
-    install::install_as_links(source_dir.path(), &target, Some("my-group"), None, None).unwrap();
+    install::install_as_links(
+        source_dir.path(),
+        &target,
+        Some("my-group"),
+        None,
+        None,
+        false,
+    )
+    .unwrap();
 
     let link = target.join("doc.md");
     assert!(link.exists());
@@ -86,8 +103,14 @@ fn install_to_workspace_rejects_group_with_path_traversal() {
     let workspace_dir = TempDir::new().unwrap();
     let target = workspace_dir.path().join("steering");
 
-    let result =
-        install::install_to_workspace(source_dir.path(), &target, Some("../evil"), None, None);
+    let result = install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        Some("../evil"),
+        None,
+        None,
+        false,
+    );
 
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
@@ -106,6 +129,7 @@ fn install_to_workspace_rejects_agents_file_with_path_traversal() {
         None,
         Some("../../.bashrc"),
         None,
+        false,
     );
 
     assert!(result.is_err());
@@ -123,7 +147,14 @@ fn install_as_links_rejects_group_with_path_traversal() {
     let link_dir = TempDir::new().unwrap();
     let target = link_dir.path().join("steering");
 
-    let result = install::install_as_links(source_dir.path(), &target, Some("../evil"), None, None);
+    let result = install::install_as_links(
+        source_dir.path(),
+        &target,
+        Some("../evil"),
+        None,
+        None,
+        false,
+    );
 
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
@@ -142,8 +173,14 @@ fn install_to_workspace_handles_missing_shared_dir() {
 
     let target = workspace_dir.path().join("steering");
 
-    let result =
-        install::install_to_workspace(source_dir.path(), &target, Some("my-group"), None, None);
+    let result = install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        Some("my-group"),
+        None,
+        None,
+        false,
+    );
 
     assert!(result.is_ok());
     assert!(target.join("doc.md").exists());
@@ -168,6 +205,7 @@ fn install_to_workspace_handles_missing_kedge_dir() {
         Some("my-group"),
         Some("AGENTS.md"),
         None,
+        false,
     );
 
     assert!(result.is_ok());
@@ -192,7 +230,8 @@ fn install_skips_symlinked_md_files_in_group() {
     make_symlink(&external_file, &group_dir.join("evil.md"));
 
     let target = workspace_dir.path().join("steering");
-    install::install_to_workspace(source_dir.path(), &target, Some("team"), None, None).unwrap();
+    install::install_to_workspace(source_dir.path(), &target, Some("team"), None, None, false)
+        .unwrap();
 
     assert!(target.join("real.md").exists());
     assert!(
@@ -217,7 +256,7 @@ fn install_skips_symlinked_md_files_in_shared() {
     make_symlink(&external_file, &shared_dir.join("evil.md"));
 
     let target = workspace_dir.path().join("steering");
-    install::install_to_workspace(source_dir.path(), &target, None, None, None).unwrap();
+    install::install_to_workspace(source_dir.path(), &target, None, None, None, false).unwrap();
 
     assert!(target.join("real.md").exists());
     assert!(
@@ -241,11 +280,139 @@ fn install_skips_symlinked_agents_file() {
     make_symlink(&external_file, &meta_dir.join("AGENTS.md"));
 
     let target = workspace_dir.path().join("steering");
-    install::install_to_workspace(source_dir.path(), &target, None, Some("AGENTS.md"), None)
-        .unwrap();
+    install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        None,
+        Some("AGENTS.md"),
+        None,
+        false,
+    )
+    .unwrap();
 
     assert!(
         !target.join("AGENTS.md").exists(),
         "symlinked AGENTS.md should be skipped"
     );
+}
+
+#[test]
+fn install_recursive_copies_nested_files() {
+    let source_dir = TempDir::new().unwrap();
+    let workspace_dir = TempDir::new().unwrap();
+
+    let group_dir = source_dir.path().join("my-group");
+    let sub_dir = group_dir.join("services").join("auth");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    std::fs::write(group_dir.join("overview.md"), "# Overview").unwrap();
+    std::fs::write(sub_dir.join("auth.md"), "# Auth Service").unwrap();
+
+    let target = workspace_dir.path().join("steering");
+
+    install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        Some("my-group"),
+        None,
+        None,
+        true,
+    )
+    .unwrap();
+
+    assert!(target.join("overview.md").exists());
+    assert!(target.join("services/auth/auth.md").exists());
+}
+
+#[test]
+fn install_non_recursive_skips_nested_files() {
+    let source_dir = TempDir::new().unwrap();
+    let workspace_dir = TempDir::new().unwrap();
+
+    let group_dir = source_dir.path().join("my-group");
+    let sub_dir = group_dir.join("nested");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    std::fs::write(group_dir.join("top.md"), "# Top").unwrap();
+    std::fs::write(sub_dir.join("deep.md"), "# Deep").unwrap();
+
+    let target = workspace_dir.path().join("steering");
+
+    install::install_to_workspace(
+        source_dir.path(),
+        &target,
+        Some("my-group"),
+        None,
+        None,
+        false,
+    )
+    .unwrap();
+
+    assert!(target.join("top.md").exists());
+    assert!(!target.join("nested/deep.md").exists());
+}
+
+#[test]
+fn install_recursive_preserves_directory_structure() {
+    let source_dir = TempDir::new().unwrap();
+    let workspace_dir = TempDir::new().unwrap();
+
+    let group_dir = source_dir.path().join("team");
+    let a_dir = group_dir.join("a");
+    let b_dir = group_dir.join("b");
+    std::fs::create_dir_all(&a_dir).unwrap();
+    std::fs::create_dir_all(&b_dir).unwrap();
+    std::fs::write(a_dir.join("doc_a.md"), "# A").unwrap();
+    std::fs::write(b_dir.join("doc_b.md"), "# B").unwrap();
+
+    let target = workspace_dir.path().join("steering");
+
+    install::install_to_workspace(source_dir.path(), &target, Some("team"), None, None, true)
+        .unwrap();
+
+    assert!(target.join("a/doc_a.md").exists());
+    assert!(target.join("b/doc_b.md").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn install_recursive_skips_symlinks_in_subdirs() {
+    let source_dir = TempDir::new().unwrap();
+    let workspace_dir = TempDir::new().unwrap();
+    let external = TempDir::new().unwrap();
+
+    let group_dir = source_dir.path().join("team");
+    let sub_dir = group_dir.join("sub");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    std::fs::write(sub_dir.join("real.md"), "# Real").unwrap();
+
+    let ext_file = external.path().join("evil.txt");
+    std::fs::write(&ext_file, "evil content").unwrap();
+    std::os::unix::fs::symlink(&ext_file, sub_dir.join("evil.md")).unwrap();
+
+    let target = workspace_dir.path().join("steering");
+
+    install::install_to_workspace(source_dir.path(), &target, Some("team"), None, None, true)
+        .unwrap();
+
+    assert!(target.join("sub/real.md").exists());
+    assert!(!target.join("sub/evil.md").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn install_recursive_as_links() {
+    let source_dir = TempDir::new().unwrap();
+    let link_dir = TempDir::new().unwrap();
+
+    let group_dir = source_dir.path().join("team");
+    let sub_dir = group_dir.join("nested");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+    std::fs::write(sub_dir.join("doc.md"), "# Doc").unwrap();
+
+    let target = link_dir.path().join("steering");
+
+    install::install_as_links(source_dir.path(), &target, Some("team"), None, None, true).unwrap();
+
+    let link = target.join("nested/doc.md");
+    assert!(link.exists());
+    assert!(link.symlink_metadata().unwrap().file_type().is_symlink());
 }
