@@ -50,11 +50,12 @@ kedge invokes the agent once per drifted doc. The JSON payload sent on stdin:
       "path": "src/auth/AuthService.java",
       "symbol": "AuthService#validateToken",
       "severity": "minor",
+      "current_sig": "sig:a1b2c3d4e5f67890",
       "summary": "auth-validation.md: 1 anchor(s) classified",
       "diff": "--- a/src/auth/AuthService.java\n+++ b/src/auth/AuthService.java\n..."
     }
   ],
-  "instructions": "Update documentation for commit abc123. Apply the changes described in the drifted anchors and stamp provenance with abc123."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating, set each anchor's provenance in the frontmatter to the corresponding current_sig value."
 }
 ```
 
@@ -86,7 +87,7 @@ When `batch = true` in config, kedge sends all drifted docs in a single invocati
       "drifted_anchors": [...]
     }
   ],
-  "instructions": "Update documentation for commit abc123..."
+  "instructions": "Update the documentation to reflect the code changes described in the drifted anchors. After updating, set each anchor's provenance in the frontmatter to the corresponding current_sig value."
 }
 ```
 
@@ -175,9 +176,9 @@ echo "{\"mr_url\": \"https://github.com/your-org/docs/pull/99\", \"status\": \"s
 
 The agent's stderr is inherited and shown in the kedge output, so you can use it for progress logging.
 
-## Agent platform configuration
+## Agent platform configuration (`kedge install`)
 
-The `[[agents]]` section in `kedge.toml` configures how `kedge install` distributes steering files to agent-specific directories:
+The `[[agents]]` section in `kedge.toml` configures `kedge install`, which distributes steering files to agent-specific directories. This is a separate workflow from the drift pipeline — `kedge install` sets up agent workspaces, while `kedge check`/`kedge update` handle drift detection and remediation.
 
 ```toml
 [[agents]]
@@ -195,4 +196,8 @@ agents_file = "CLAUDE.md"
 skill_dir = ""
 ```
 
-`kedge install` uses this configuration to place doc files where each agent platform can find them. It does not affect how the agent command is invoked. The paths are platform-specific: Kiro uses `.kiro/steering/`, but Claude Code has no built-in "steering" directory, so use any path the agent can read (e.g., `docs/`).
+`kedge install` places doc files where each agent platform reads them. The `[[agents]]` config does not affect how the agent command is invoked during remediation — that's controlled by `[remediation].agent_command`.
+
+Typical usage:
+- **Dev machines**: `kedge install --link` symlinks steering files to global agent directories
+- **CI**: `kedge install --workspace` copies them to workspace directories before the agent runs

@@ -2,6 +2,11 @@
 
 All commands accept `--config <path>` to override the default config file location (`kedge.toml`).
 
+kedge has two independent workflows:
+
+- **Drift pipeline** (`init`, `check`, `triage`, `update`, `status`, `link`, `sync`) — detects stale docs, classifies severity, and invokes agents to open MRs. Runs in your code repo.
+- **Steering distribution** (`install`) — copies or symlinks doc files from the docs repo into agent workspace directories. Sets up agent environments on dev machines or in CI. Does not detect drift or invoke agents.
+
 ## `kedge init`
 
 Create a default `kedge.toml` in the current directory.
@@ -206,7 +211,7 @@ Synced 3 anchors with content-addressed provenance
 
 ## `kedge install`
 
-Pull steering files from the docs repository to local agent directories.
+Pull steering files from the docs repository to local agent directories. This is the steering distribution workflow — independent of drift detection and remediation.
 
 ```bash
 kedge install --link                          # symlink to global dirs (dev)

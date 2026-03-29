@@ -95,6 +95,17 @@ kedge status
 
 kedge shows all steering files with their anchors, groups, and current provenance values.
 
+## Optional: distribute steering files to agents
+
+If your agents read docs from specific local directories (e.g., `.kiro/steering/`), use `kedge install` to copy or symlink steering files there. This is independent of the drift pipeline above.
+
+```bash
+kedge install --link                  # dev machine: symlink to global agent dirs
+kedge install --workspace             # CI: copy to workspace dirs
+```
+
+See [Agent Integration](../guides/agent-integration.md) for details on configuring `[[agents]]` platforms.
+
 ## Next steps
 
 - [Your First Steering File](first-steering-file.md): create a steering file from scratch

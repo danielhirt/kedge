@@ -325,6 +325,10 @@ kedge scans stdout for URLs starting with `https://` or `http://` and uses the f
 
 ## Commands
 
+kedge has two independent workflows:
+
+**Drift pipeline** — run in your code repo to detect stale docs, triage severity, and invoke agents to open MRs.
+
 | Command | Description |
 |---------|-------------|
 | `kedge init` | Create a default `kedge.toml` in the current directory |
@@ -334,6 +338,11 @@ kedge scans stdout for URLs starting with `https://` or `http://` and uses the f
 | `kedge status` | Show all anchors and their current state |
 | `kedge link [files...]` | Stamp content-addressed provenance on doc anchors |
 | `kedge sync [files...]` | Advance provenance without changing doc content |
+
+**Steering distribution** — copies or symlinks doc files from the docs repo into directories where agents read them. Independent of the drift pipeline. Use it to set up agent workspaces on dev machines or in CI before the agent runs.
+
+| Command | Description |
+|---------|-------------|
 | `kedge install` | Pull steering files from docs repo to agent directories |
 
 `--config <path>` overrides the default config file (`kedge.toml`) on all commands.

@@ -34,7 +34,7 @@ cargo install kedge
 
 <div class="feature">
 <h3>Remediation</h3>
-<p>Invokes your agent (Kiro, Claude Code, or custom) to update docs and open merge requests. Auto-merge for minor changes. Human review for major rewrites.</p>
+<p>Invokes your agent (Kiro, Claude Code, or custom) to update docs, stamp new provenance, and open merge requests. kedge's pipeline ends when the agent returns — MR review and merging follow your existing workflows.</p>
 </div>
 
 </div>
