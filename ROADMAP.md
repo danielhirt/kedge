@@ -4,6 +4,12 @@ Planned work for kedge, roughly in priority order.
 
 ## Planned
 
+### Regex and glob patterns in anchor frontmatter
+Allow anchors to target multiple files via glob patterns (e.g., `src/auth/**/*.java`) or regex matches instead of requiring one anchor per file. Reduces frontmatter boilerplate for docs that track an entire module or directory.
+
+### Logging and telemetry
+Add structured logging throughout the pipeline (detection, triage, remediation) and optional telemetry for tracking drift trends over time.
+
 ### Built-in agent configuration and steering templates
 `kedge init` generates `kedge.toml` but leaves the agent command, steering files, and agent instructions as blank placeholders. New users must figure out agent integration from scratch. Ship a default agent configuration that works with Claude Code (and optionally Kiro), including a starter `agent_command`, `agent_instructions`, and a template steering file with example anchors. A `kedge init --full` flag could scaffold the complete setup: config, a sample steering doc, and platform-specific agent files (`CLAUDE.md`, `AGENTS.md`).
 
@@ -22,11 +28,11 @@ The detection loop in `detect_drift` processes docs and anchors serially. For la
 ### Windows subprocess termination
 `invoke_agent` uses SIGKILL for timeout enforcement, which only works on Unix. Windows processes that exceed `agent_timeout` are not killed. Add Windows-compatible process termination via `TerminateProcess`.
 
-### Logging and telemetry
-Add structured logging throughout the pipeline (detection, triage, remediation) and optional telemetry for tracking drift trends over time.
+## Done (v0.3.2)
 
-### Regex and glob patterns in anchor frontmatter
-Allow anchors to target multiple files via glob patterns (e.g., `src/auth/**/*.java`) or regex matches instead of requiring one anchor per file. Reduces frontmatter boilerplate for docs that track an entire module or directory.
+- **Auto-detect code repo URL from git remote.** `code_repo_url` resolves as: `KEDGE_CODE_REPO_URL` env var → `git remote get-url origin` → `file://<cwd>`. Eliminates `KEDGE_CODE_REPO_URL` from most local and monorepo workflows.
+- **Clarified `[[repos.docs]]` runtime behavior.** Docs now explain that `[[repos.docs]]` fetches from the remote on every run and reads from a cache, not the working tree.
+- **Rewrote monorepo docs.** Recommends `KEDGE_DOCS_PATH` as the primary monorepo approach with a warning against `[[repos.docs]]` for local development.
 
 ## Done (v0.3.1)
 
