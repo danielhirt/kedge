@@ -20,6 +20,8 @@ kedge-check:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
 
+> **Why `KEDGE_CODE_REPO_URL`?** kedge auto-detects the code repo URL from `git remote get-url origin`, but GitLab CI runners set `origin` to a token-prefixed URL (e.g., `https://gitlab-ci-token:***@gitlab.com/group/project.git`). Setting `KEDGE_CODE_REPO_URL` to `$CI_PROJECT_URL` gives a clean URL that matches your anchor `repo` fields.
+
 ### How it works
 
 1. kedge clones the docs repo from `[[repos.docs]]` in `kedge.toml` (cached across runs in `~/.cache/kedge/repos/`)
@@ -87,7 +89,7 @@ kedge detects CI environments by checking for `CI`, `GITHUB_ACTIONS`, or `GITLAB
 
 | Variable | Purpose |
 |----------|---------|
-| `KEDGE_CODE_REPO_URL` | Override the code repo URL (default: `file://<cwd>`) |
+| `KEDGE_CODE_REPO_URL` | Override the code repo URL. Auto-detected from `git remote get-url origin` when not set. |
 | `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
 | `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup. |
 | `ANTHROPIC_API_KEY` | API key for Anthropic triage provider |

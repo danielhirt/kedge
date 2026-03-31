@@ -784,3 +784,90 @@ fn detect_drift_clean_docs_also_have_relative_paths() {
         "clean doc path should also be relative to repo root"
     );
 }
+
+// ── remote_url tests ──────────────────────────────────────────────────
+
+#[test]
+fn remote_url_returns_origin_url() {
+    let dir = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args([
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/example/repo.git",
+        ])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let url = kedge::detection::git::remote_url(dir.path());
+    assert_eq!(url, Some("https://github.com/example/repo.git".to_string()));
+}
+
+#[test]
+fn remote_url_returns_none_when_no_origin() {
+    let dir = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let url = kedge::detection::git::remote_url(dir.path());
+    assert_eq!(url, None);
+}
+
+#[test]
+fn remote_url_returns_none_when_not_a_git_repo() {
+    let dir = TempDir::new().unwrap();
+
+    let url = kedge::detection::git::remote_url(dir.path());
+    assert_eq!(url, None);
+}
+
+#[test]
+fn remote_url_returns_ssh_url() {
+    let dir = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["remote", "add", "origin", "git@github.com:example/repo.git"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let url = kedge::detection::git::remote_url(dir.path());
+    assert_eq!(url, Some("git@github.com:example/repo.git".to_string()));
+}
+
+#[test]
+fn remote_url_ignores_non_origin_remotes() {
+    let dir = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args([
+            "remote",
+            "add",
+            "upstream",
+            "https://github.com/upstream/repo.git",
+        ])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    let url = kedge::detection::git::remote_url(dir.path());
+    assert_eq!(url, None);
+}

@@ -34,6 +34,8 @@ jobs:
 
 > **Note:** `fetch-depth: 0` is only required if you use legacy SHA-based provenance. With content-addressed `sig:` provenance, a shallow clone is sufficient.
 
+> **Why `KEDGE_CODE_REPO_URL`?** kedge auto-detects the code repo URL from `git remote get-url origin`, but `actions/checkout` sets `origin` to `https://github.com/org/repo` (no `.git` suffix). If your anchors use `git@github.com:org/repo.git` or `https://github.com/org/repo.git`, the URLs won't match. Setting `KEDGE_CODE_REPO_URL` avoids this mismatch.
+
 ## Full pipeline on schedule
 
 Run detect-triage-remediate on a cron schedule. Use `--no-stamp` because docs live in a separate repo. Run `kedge sync` after agent MRs merge to advance provenance.
@@ -130,7 +132,7 @@ Store API keys as [repository secrets](https://docs.github.com/en/actions/securi
 
 | Variable | Purpose |
 |----------|---------|
-| `KEDGE_CODE_REPO_URL` | Override code repo URL (set to `${{ github.server_url }}/${{ github.repository }}`) |
+| `KEDGE_CODE_REPO_URL` | Override code repo URL. Auto-detected from `git remote get-url origin` when not set. |
 | `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
 | `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup. |
 

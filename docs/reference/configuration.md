@@ -154,10 +154,10 @@ One or more documentation repositories. kedge clones each repo and scans all of 
 |-------|------|---------|-------------|
 | `url` | string | (required) | Git URL of the docs repository (SSH or HTTPS). |
 | `path` | string | (required) | Subdirectory within the repo where steering files live. Use `"."` for the repo root. |
-| `ref` | string | (required) | Git branch or tag to track. |
+| `ref` | string | (required) | Git branch or tag to fetch. kedge always reads docs from this ref, regardless of which branch the code repo is on. |
 | `remote_name` | string | `"origin"` | Git remote name used for fetch operations. |
 
-Docs repos are cloned to `~/.cache/kedge/repos/` and fetched on each run. The cache directory uses `0o700` permissions.
+**Runtime behavior:** On every `kedge check` or `kedge update`, kedge fetches the configured `ref` from the remote and hard-resets the cached clone to `FETCH_HEAD`. Docs are read from this cached clone (`~/.cache/kedge/repos/`), not from your working tree. Local changes to doc files are not visible until pushed to the remote at the configured `ref`. To read docs from the working tree instead, use `KEDGE_DOCS_PATH`.
 
 #### `remote_name`
 
@@ -207,7 +207,7 @@ These override config file settings when present.
 
 | Variable | Description |
 |----------|-------------|
-| `KEDGE_CODE_REPO_URL` | Override code repo URL (default: `file://<cwd>`). Used to match anchors. |
+| `KEDGE_CODE_REPO_URL` | Override code repo URL. Auto-detected from `git remote get-url origin` when not set. |
 | `KEDGE_DOCS_PATH` | Use a local docs path instead of cloning from `[[repos.docs]]`. For local testing or monorepos. |
 | `KEDGE_DOCS_REPO_URL` | Docs repo URL for agent payloads. Only needed with `KEDGE_DOCS_PATH` in a two-repo setup (default: code repo URL). With `[[repos.docs]]`, the URL comes from config. |
 | `ANTHROPIC_API_KEY` | API key for `anthropic` triage provider. |

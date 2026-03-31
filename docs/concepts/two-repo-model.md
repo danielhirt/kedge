@@ -1,12 +1,12 @@
 # Two-Repo Model
 
-kedge is designed around a separation between the **code repository** and the **docs repository**. Steering files live in the docs repo and point to code locations via anchors. The code repo contains `kedge.toml` and is where kedge runs.
+kedge separates the **code repository** from the **docs repository**. Steering files live in the docs repo and point to code locations via anchors. The code repo contains `kedge.toml` and is where you run kedge.
 
 ## Why separate repos?
 
 ### Independent lifecycles
 
-Code and documentation often follow different review and release processes. A code change might need urgent deployment while the corresponding doc update goes through a technical writing review. Separate repos let each proceed at its own pace.
+Code and documentation follow different review and release processes. A code change might need urgent deployment while the corresponding doc update goes through technical writing review. Separate repos let each proceed at its own pace.
 
 ### Different ownership
 
@@ -60,11 +60,17 @@ kedge:
       provenance: "sig:a1b2c3d4e5f67890"
 ```
 
-When kedge runs in the code repo, it resolves the current repo URL (from `KEDGE_CODE_REPO_URL` or `file://<cwd>`) and only processes anchors whose `repo` matches.
+When kedge runs in the code repo, it resolves the current repo URL and only processes anchors whose `repo` matches. The URL is resolved in this order:
+
+1. `KEDGE_CODE_REPO_URL` environment variable (if set)
+2. `git remote get-url origin` (auto-detected from the repo)
+3. `file://<cwd>` (last resort fallback)
+
+Your anchors typically use the same HTTPS or SSH URL as your `origin` remote, so kedge matches them without configuration.
 
 ### Cloning the docs repo
 
-kedge needs access to both repos during detection. Configure docs repos in `kedge.toml` under `[[repos.docs]]`. kedge clones them automatically. CI pipelines only need the code repo checked out.
+kedge needs access to both repos during detection. Configure docs repos in `kedge.toml` under `[[repos.docs]]`:
 
 ```toml
 [[repos.docs]]
@@ -73,9 +79,25 @@ path = "steering"
 ref = "main"
 ```
 
-When multiple doc repos are configured, `kedge check` and `kedge update` scan all of them and merge the results into a single drift report. Cloned repos are cached in `~/.cache/kedge/repos/` (keyed by URL and ref) and fetched on subsequent runs. The cache uses `0o700` permissions.
+**Runtime behavior:** On every `kedge check` or `kedge update`, kedge clones the configured repo to `~/.cache/kedge/repos/` (first run) or fetches and hard-resets to the latest commit on the configured `ref` (subsequent runs). Docs are read from this cached clone, not from your working tree. Consequences:
 
-Set `KEDGE_DOCS_PATH` to skip the clone and use a local directory instead. This is useful for local testing or monorepos. In a two-repo setup with `KEDGE_DOCS_PATH`, also set `KEDGE_DOCS_REPO_URL` so agent payloads contain the correct docs repo URL.
+- CI pipelines only need the code repo checked out — kedge fetches the docs repo automatically.
+- Local changes to doc files are not visible to `kedge check` until they are pushed to the remote at the configured `ref`.
+- The `ref` field controls which branch is fetched. If `ref = "main"`, kedge always reads docs from `main`, even if you're on a different branch.
+
+When multiple doc repos are configured, `kedge check` and `kedge update` scan all of them and merge the results into a single drift report.
+
+### Using a local docs directory
+
+Set `KEDGE_DOCS_PATH` to skip the clone and read docs directly from a local directory:
+
+```bash
+KEDGE_DOCS_PATH=./path/to/steering kedge check
+```
+
+kedge reads steering files from your working tree, so local changes (including `kedge link` stamps) are visible immediately. Use this for local development, monorepos, or pre-cloned CI setups.
+
+In a two-repo setup with `KEDGE_DOCS_PATH`, also set `KEDGE_DOCS_REPO_URL` so agent payloads contain the correct docs repo URL instead of defaulting to the code repo URL.
 
 ### `kedge install`
 
@@ -93,24 +115,23 @@ Agents (Kiro, Claude Code, etc.) gain access to the steering context without nee
 
 ## Monorepo alternative
 
-If your code and docs are in the same repository, the two-repo model still works:
-
-1. Set `KEDGE_DOCS_PATH` to the docs directory within your repo
-2. Set anchor `repo` fields to match your repo URL
-3. Use a single `[[repos.docs]]` entry pointing to the same repo
-
-```toml
-[[repos.docs]]
-url = "git@github.com:your-org/monorepo.git"
-path = "docs/steering/"
-ref = "main"
-```
-
-Or:
+If your code and docs are in the same repository, use `KEDGE_DOCS_PATH` to point kedge at the docs directory:
 
 ```bash
 KEDGE_DOCS_PATH=./docs/steering kedge check
 ```
+
+kedge auto-detects the repo URL from `git remote get-url origin`, so anchors using your HTTPS or SSH remote URL match automatically. The full local workflow:
+
+1. Add `kedge:` frontmatter to a steering file, with anchor `repo` fields matching your remote URL
+2. Run `kedge link` to stamp provenance
+3. Edit code
+4. Run `kedge check` — drift is detected immediately, even for uncommitted changes
+
+!!! warning "Don't use `[[repos.docs]]` for monorepo local development"
+    `[[repos.docs]]` fetches from the remote and reads from a cached clone. Local changes to docs (such as `kedge link` stamps) are invisible to `kedge check` until pushed. PR branches that modify steering files won't see their own changes if `ref` points to a different branch.
+
+    Use `KEDGE_DOCS_PATH` instead — it reads directly from your working tree.
 
 ## Multiple code repos
 

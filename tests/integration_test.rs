@@ -108,6 +108,161 @@ fn check_with_config_and_env_prefers_env() {
         .success();
 }
 
+// ---------------------------------------------------------------------------
+// Git remote URL auto-detection
+// ---------------------------------------------------------------------------
+
+#[test]
+fn check_uses_git_remote_url_when_env_not_set() {
+    // Code repo with an origin remote set to an HTTPS URL
+    let code_dir = TempDir::new().unwrap();
+    let code_path = code_dir.path();
+    init_git_repo(code_path);
+
+    let remote_url = "https://github.com/example/myrepo.git";
+    process::Command::new("git")
+        .args(["remote", "add", "origin", remote_url])
+        .current_dir(code_path)
+        .output()
+        .unwrap();
+
+    std::fs::create_dir_all(code_path.join("src")).unwrap();
+    std::fs::write(
+        code_path.join("src/lib.ts"),
+        "export function greet() { return 'hi'; }\n",
+    )
+    .unwrap();
+    git_commit(code_path, "init");
+
+    // Compute the current sig so the doc starts clean
+    let sig = kedge::detection::fingerprint::compute_sig(
+        "export function greet() { return 'hi'; }\n",
+        "src/lib.ts",
+        Some("greet"),
+    );
+
+    // Docs dir with anchor using the HTTPS remote URL (not file://)
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{remote_url}\"\n      path: src/lib.ts\n      symbol: greet\n      provenance: \"{sig}\"\n---\n\n# Greet\n",
+    );
+    std::fs::write(docs_dir.path().join("greet.md"), &steering).unwrap();
+
+    // Run check WITHOUT KEDGE_CODE_REPO_URL — should auto-detect from git remote
+    Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["check"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .env_remove("KEDGE_CODE_REPO_URL")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"anchor_count\": 1"));
+}
+
+#[test]
+fn check_detects_drift_via_git_remote_url() {
+    // Same as above but with a code change to prove drift detection works end-to-end
+    let code_dir = TempDir::new().unwrap();
+    let code_path = code_dir.path();
+    init_git_repo(code_path);
+
+    let remote_url = "https://github.com/example/driftrepo.git";
+    process::Command::new("git")
+        .args(["remote", "add", "origin", remote_url])
+        .current_dir(code_path)
+        .output()
+        .unwrap();
+
+    std::fs::create_dir_all(code_path.join("src")).unwrap();
+    std::fs::write(
+        code_path.join("src/lib.ts"),
+        "export function greet() { return 'hi'; }\n",
+    )
+    .unwrap();
+    git_commit(code_path, "init");
+
+    let sig = kedge::detection::fingerprint::compute_sig(
+        "export function greet() { return 'hi'; }\n",
+        "src/lib.ts",
+        Some("greet"),
+    );
+
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{remote_url}\"\n      path: src/lib.ts\n      symbol: greet\n      provenance: \"{sig}\"\n---\n\n# Greet\n",
+    );
+    std::fs::write(docs_dir.path().join("greet.md"), &steering).unwrap();
+
+    // Now change the code — drift should be detected
+    std::fs::write(
+        code_path.join("src/lib.ts"),
+        "export function greet(name: string) { return `hi ${name}`; }\n",
+    )
+    .unwrap();
+
+    Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["check"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .env_remove("KEDGE_CODE_REPO_URL")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains(
+            "\"diff_summary\": \"content fingerprint changed\"",
+        ));
+}
+
+#[test]
+fn check_env_var_overrides_git_remote() {
+    // KEDGE_CODE_REPO_URL should take priority over git remote
+    let code_dir = TempDir::new().unwrap();
+    let code_path = code_dir.path();
+    init_git_repo(code_path);
+
+    // Remote is set to one URL
+    process::Command::new("git")
+        .args([
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/wrong/repo.git",
+        ])
+        .current_dir(code_path)
+        .output()
+        .unwrap();
+
+    std::fs::create_dir_all(code_path.join("src")).unwrap();
+    std::fs::write(code_path.join("src/lib.ts"), "export function f() {}\n").unwrap();
+    git_commit(code_path, "init");
+
+    let sig = kedge::detection::fingerprint::compute_sig(
+        "export function f() {}\n",
+        "src/lib.ts",
+        Some("f"),
+    );
+
+    // Anchor uses a different URL that matches the env var, not the remote
+    let override_url = "https://github.com/correct/repo.git";
+    let docs_dir = TempDir::new().unwrap();
+    let steering = format!(
+        "---\nkedge:\n  anchors:\n    - repo: \"{override_url}\"\n      path: src/lib.ts\n      symbol: f\n      provenance: \"{sig}\"\n---\n\n# F\n",
+    );
+    std::fs::write(docs_dir.path().join("f.md"), &steering).unwrap();
+
+    // Env var should override git remote — anchor matches the env var URL
+    Command::cargo_bin("kedge")
+        .unwrap()
+        .args(["check"])
+        .current_dir(code_path)
+        .env("KEDGE_DOCS_PATH", docs_dir.path())
+        .env("KEDGE_CODE_REPO_URL", override_url)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"anchor_count\": 1"));
+}
+
 #[test]
 fn check_without_config_or_env_fails_with_helpful_error() {
     let code_dir = TempDir::new().unwrap();

@@ -27,7 +27,7 @@ kedge scans the docs directory for `.md` files with `kedge:` frontmatter contain
 
 ### 2. Filter relevant anchors
 
-Each anchor has a `repo` field. kedge only processes anchors whose `repo` matches the current code repository URL (from `KEDGE_CODE_REPO_URL` or `file://<cwd>`). Anchors pointing to other repos are skipped.
+Each anchor has a `repo` field. kedge only processes anchors whose `repo` matches the current code repository URL. The URL is auto-detected from `git remote get-url origin`, or can be overridden with `KEDGE_CODE_REPO_URL`. Anchors pointing to other repos are skipped.
 
 ### 3. Compute current fingerprints
 

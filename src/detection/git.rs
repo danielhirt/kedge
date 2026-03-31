@@ -52,6 +52,26 @@ pub fn diff_with_summary(
     Ok((diff, summary))
 }
 
+/// Returns the URL of the `origin` remote, or `None` if unavailable.
+pub fn remote_url(repo_path: &Path) -> Option<String> {
+    let output = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(repo_path)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let url = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    if url.is_empty() {
+        None
+    } else {
+        Some(url)
+    }
+}
+
 pub fn head_sha(repo_path: &Path) -> Result<String> {
     let output = Command::new("git")
         .args(["rev-parse", "HEAD"])

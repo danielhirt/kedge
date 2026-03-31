@@ -5,7 +5,10 @@ use clap::Parser;
 use cli::{Cli, Command};
 
 fn code_repo_url(cwd: &std::path::Path) -> String {
-    std::env::var("KEDGE_CODE_REPO_URL").unwrap_or_else(|_| format!("file://{}", cwd.display()))
+    std::env::var("KEDGE_CODE_REPO_URL")
+        .ok()
+        .or_else(|| kedge::detection::git::remote_url(cwd))
+        .unwrap_or_else(|| format!("file://{}", cwd.display()))
 }
 
 fn repo_name(cwd: &std::path::Path) -> String {

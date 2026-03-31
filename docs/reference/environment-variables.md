@@ -25,16 +25,27 @@ kedge reads `MY_CUSTOM_ANTHROPIC_KEY` instead of `ANTHROPIC_API_KEY`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KEDGE_CODE_REPO_URL` | `file://<cwd>` | URL of the code repository. Set this in CI to match the repo URL in your steering file anchors. |
+| `KEDGE_CODE_REPO_URL` | (auto-detected) | Override the code repo URL used to match anchors. Rarely needed; see below. |
 | `KEDGE_DOCS_PATH` | (clone from config) | Local path to the docs directory. When set, kedge skips cloning from `[[repos.docs]]` and reads steering files from this path instead. |
 
 ### `KEDGE_CODE_REPO_URL`
 
 kedge uses this to match steering file anchors to the current repository. An anchor is only processed if its `repo` field matches this URL.
 
-In local development, the default `file://<cwd>` works when anchors use the same format. In CI, set it to match your anchor URLs:
+kedge resolves the code repo URL in this order:
+
+1. `KEDGE_CODE_REPO_URL` environment variable (if set)
+2. `git remote get-url origin` (auto-detected from the repo)
+3. `file://<cwd>` (last resort fallback)
+
+`origin` typically points to the same HTTPS or SSH URL used in anchor `repo` fields, so kedge matches anchors without configuration on developer machines. Set `KEDGE_CODE_REPO_URL` when:
+
+- **CI pipelines** — CI runners often set `origin` to a URL that doesn't match your anchors (e.g., `actions/checkout` uses `https://github.com/org/repo` without `.git`, GitLab runners prepend `gitlab-ci-token@`)
+- The repo has no `origin` remote
+- `origin` uses a different protocol than your anchors (e.g., you cloned via SSH but anchors use HTTPS)
 
 ```yaml
+# Example: CI override when needed
 # GitLab CI
 variables:
   KEDGE_CODE_REPO_URL: $CI_PROJECT_URL
@@ -46,14 +57,16 @@ env:
 
 ### `KEDGE_DOCS_PATH`
 
-Useful when:
+kedge reads steering files from this local path instead of cloning from `[[repos.docs]]`. Local changes (including `kedge link` stamps) are visible to `kedge check` immediately.
 
-- The docs repo is already checked out as part of your CI pipeline
-- You're testing locally and don't want kedge to clone the docs repo
-- You have a monorepo where docs and code are in the same repository
+Use this when:
+
+- **Monorepos** — docs and code live in the same repository. `[[repos.docs]]` reads from a remote-fetched cache and won't see local changes.
+- **Local development** — you want to test against local doc edits without pushing first.
+- **Pre-cloned CI** — the docs repo is already checked out in your pipeline.
 
 ```bash
-KEDGE_DOCS_PATH=./docs kedge check
+KEDGE_DOCS_PATH=./docs/steering kedge check
 ```
 
 ## CI detection

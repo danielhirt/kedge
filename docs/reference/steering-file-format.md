@@ -45,7 +45,7 @@ An array of code anchors. Each anchor points to a specific location in a code re
 | Type | string (required) |
 | Purpose | Git URL of the code repository |
 
-Must match the code repo URL that kedge resolves (from `KEDGE_CODE_REPO_URL` or `file://<cwd>`). Anchors pointing to other repos are skipped during detection.
+Must match the code repo URL that kedge resolves. kedge auto-detects this from `git remote get-url origin`; override with `KEDGE_CODE_REPO_URL` if needed. Anchors pointing to other repos are skipped during detection.
 
 #### `anchors[].path`
 
